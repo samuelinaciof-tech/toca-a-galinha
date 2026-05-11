@@ -352,36 +352,41 @@ input[type=checkbox]{accent-color:var(--or);cursor:pointer;width:13px;height:13p
 .impl-board-name{font-family:var(--fs);font-size:16px;font-weight:800;color:var(--tx);margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .impl-board-name span{font-family:var(--fj);font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1.2px}
 
-/* Kanban — responsivo por CSS grid */
+/* Kanban — todas as colunas na mesma linha, encolhem para caber */
 .impl-kanban{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
-  gap:8px;
-  overflow-x:auto;
+  display:flex;
+  flex-direction:row;
+  flex-wrap:nowrap;
+  gap:6px;
+  overflow:visible;
   padding-bottom:8px;
-  min-height:340px;
+  min-height:200px;
   align-items:start;
+  width:100%;
 }
-/* Para muitas colunas, permite scroll horizontal */
-@media(max-width:900px){
-  .impl-kanban{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));}
+.impl-col{
+  flex:1 1 0;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  overflow:hidden;
 }
-.impl-col{display:flex;flex-direction:column;gap:6px;min-width:0}
 .impl-col-header{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--ln2);margin-bottom:2px}
-.impl-col-name{font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.impl-col-name{font-size:8px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
 .impl-col-count{font-size:9px;font-weight:800;padding:1px 5px;border-radius:8px;background:var(--bg4);color:var(--tx4);flex-shrink:0}
 .impl-col-count.has{background:var(--orbg);color:var(--or)}
 .impl-col-body{display:flex;flex-direction:column;gap:5px;min-height:50px;padding:2px;border-radius:var(--r);transition:background .15s}
 .impl-col-body.drag-over{background:var(--orbg);border:1px dashed var(--or)40}
 
 /* Kanban card */
-.impl-card{background:var(--bg2);border:1px solid var(--ln2);border-radius:var(--r2);border-top:2px solid var(--card-clr,var(--ln3));padding:9px 10px;cursor:pointer;transition:all .15s;position:relative}
+.impl-card{background:var(--bg2);border:1px solid var(--ln2);border-radius:var(--r2);border-top:2px solid var(--card-clr,var(--ln3));padding:7px 8px;cursor:pointer;transition:all .15s;position:relative}
 .impl-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.4)}
 .impl-card.ok{--card-clr:var(--grn);background:linear-gradient(180deg,#22c55e06 0%,var(--bg2) 40%)}
 .impl-card.at{--card-clr:var(--red);background:linear-gradient(180deg,#ef444406 0%,var(--bg2) 40%)}
 .impl-card.pa{--card-clr:#fbbf24;background:linear-gradient(180deg,#fbbf2406 0%,var(--bg2) 40%)}
 .impl-card.dn{--card-clr:var(--blu);background:linear-gradient(180deg,#3b82f606 0%,var(--bg2) 40%);opacity:.7}
-.impl-card-client{font-size:12px;font-weight:800;color:var(--tx);line-height:1.35;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.impl-card-client{font-size:11px;font-weight:800;color:var(--tx);line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
 .impl-card-date{font-size:11px;font-weight:700;margin-bottom:2px}
 .impl-card-date.ok{color:var(--grn)}.impl-card-date.at{color:var(--red)}.impl-card-date.pa{color:#fbbf24}.impl-card-date.dn{color:var(--blu)}
 .impl-card-days{font-size:9px;color:var(--tx4);font-weight:600}
@@ -425,11 +430,28 @@ input[type=checkbox]{accent-color:var(--or);cursor:pointer;width:13px;height:13p
 .dash-title{font-family:var(--fs);font-size:15px;font-weight:800;color:var(--or);letter-spacing:.5px;display:flex;align-items:center;gap:8px}
 .dash-time{font-family:var(--fs);font-size:14px;font-weight:800;color:var(--tx2);letter-spacing:1px}
 .dash-exit{padding:4px 12px;background:var(--bg3);border:1px solid var(--ln3);border-radius:var(--r);color:var(--tx3);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fj);transition:all .12s}
-.dash-exit:hover{border-color:var(--or);color:var(--or)}
-.dash-mode-wrap{padding-top:42px;height:100vh;display:flex;flex-direction:column}
+.dash-exit:hover{border-color:var(--red)60;color:var(--red)}
+.dash-mode-wrap{padding-top:46px;height:100vh;display:flex;flex-direction:column}
+/* Botão sair flutuante — sempre visível mesmo em fullscreen */
+.dash-btn-exit{
+  display:none;
+  position:fixed;bottom:18px;right:18px;z-index:99999;
+  padding:9px 18px;
+  background:var(--bg2);
+  border:1px solid var(--ln3);
+  border-radius:20px;
+  color:var(--tx2);
+  font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--fj);
+  transition:all .2s;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);
+}
+.dash-mode .dash-btn-exit{display:block}
+.dash-btn-exit:hover{border-color:var(--red)80;color:var(--red);transform:scale(1.04)}
 </style>
 </head>
 <body>
+<button class="dash-btn-exit" onclick="exitDashboard()">✕ Sair do Dashboard</button>
 <div class="dash-topbar" id="dashTopbar">
   <div class="dash-title"><span>🏗️</span><span id="dashBoardTitle">Implantações</span></div>
   <div style="display:flex;align-items:center;gap:16px">
@@ -1919,18 +1941,25 @@ function enterDashboard(){
     if(cl)cl.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     updateDashTopbar();
   },1000);
-  // Tenta fullscreen
-  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}catch(e){}
+  // Fullscreen no body — mantém position:fixed visível
+  try{
+    const el=document.body;
+    if(el.requestFullscreen)el.requestFullscreen();
+    else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+  }catch(e){}
 }
 
 function exitDashboard(){
   document.querySelector('.shell')?.classList.remove('dash-mode');
   // Unwrap
   const wrap=document.querySelector('.dash-mode-wrap');
-  const content=document.querySelector('.content');
-  if(wrap&&content){wrap.parentNode.insertBefore(content,wrap);wrap.remove();}
+  const cnt=document.querySelector('.content');
+  if(wrap&&cnt){wrap.parentNode.insertBefore(cnt,wrap);wrap.remove();}
   if(dashClockTimer){clearInterval(dashClockTimer);dashClockTimer=null;}
-  try{document.exitFullscreen&&document.exitFullscreen();}catch(e){}
+  try{
+    if(document.fullscreenElement)document.exitFullscreen();
+    else if(document.webkitFullscreenElement)document.webkitExitFullscreen();
+  }catch(e){}
 }
 
 function updateDashTopbar(){
