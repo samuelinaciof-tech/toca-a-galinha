@@ -1226,10 +1226,16 @@ function rModal(){
         <div class="fg"><label class="fl">Prazo</label><input type="date" class="fi" id="m_gdue" value="${ex?.deadline||today()}"></div>
       </div>
       <div class="fg"><label class="fl">Responsável</label><select class="fs" id="m_gresp">
-        ${gU().map(u=>{
-          const isSel=ex?ex.responsible===u.email:u.email===email;
-          return`<option value="${esc(u.email)}" ${isSel?'selected':''}>${esc(u.name||u.email)}</option>`;
-        }).join('')}
+        ${(()=>{
+          // Se criando nova meta e email é o admin, não pré-seleciona ninguém (força escolha)
+          const collabsFirst=gU().filter(u=>u.email!==ADMIN);
+          const adminUser=gU().find(u=>u.email===ADMIN);
+          const allOrdered=[...collabsFirst,...(adminUser?[adminUser]:[])];
+          return allOrdered.map(u=>{
+            const isSel=ex?ex.responsible===u.email:(u.email===email&&email!==ADMIN);
+            return`<option value="${esc(u.email)}" ${isSel?'selected':''}>${esc(u.name||u.email)}</option>`;
+          }).join('');
+        })()}
       </select></div>
     </div>
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveGoal('${ex?.id||''}','${email}')">Salvar Meta</button></div>`;
@@ -1458,20 +1464,21 @@ window.changeGoalStatus=async(id,newStatus,e)=>{
 
 window.saveGoal=async(editId,email)=>{
   const text=gv('m_gtxt'),type=gv('m_gtype'),deadline=gv('m_gdue');
-  // Pega responsible do select — fallback para o email passado
-  const responsible=gv('m_gresp')||email;
+  const responsible=gv('m_gresp');
   if(!text){alert('Digite o texto da meta.');return;}
   if(!deadline){alert('Defina o prazo.');return;}
   if(!responsible){alert('Selecione o responsável.');return;}
-  console.log('saveGoal — responsible:',responsible,'email:',email);
   if(editId){
     const res=await sb('goals','PATCH',{text,type,deadline,responsible},`?id=eq.${editId}`);
+    if(res===null){alert('Erro ao salvar. Tente novamente.');return;}
     const idx=CACHE.goals.findIndex(g=>g.id===editId);
     if(idx>=0)CACHE.goals[idx]={...CACHE.goals[idx],text,type,deadline,responsible};
   } else {
     const entry={id:uid(),user_email:responsible,text,type,deadline,responsible,status:'on_track',created_at:new Date().toISOString()};
     const res=await sb('goals','POST',entry);
-    if(res)CACHE.goals.unshift(Array.isArray(res)?res[0]:entry);
+    if(res===null){alert('Erro ao salvar. Verifique o Supabase.');return;}
+    // Supabase retorna array com o registro criado
+    CACHE.goals.unshift(Array.isArray(res)&&res.length?res[0]:entry);
   }
   S.modal=null;render();
 };
