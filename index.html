@@ -40,6 +40,13 @@ body{font-family:var(--fj);background:var(--bg);color:var(--tx);font-size:13px;l
 .sb-urole{font-size:9px;color:var(--or);font-weight:600}
 .sb-nav{flex:1;padding:6px 0;overflow-y:auto}
 .sb-sec{padding:10px 14px 3px;font-size:9px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:1.8px}
+.sb-sec-toggle{padding:8px 14px 3px;font-size:9px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:1.8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;transition:color .12s}
+.sb-sec-toggle:hover{color:var(--tx2)}
+.sb-sec-toggle .sb-sec-arrow{font-size:8px;transition:transform .2s;color:var(--tx4)}
+.sb-sec-toggle.open .sb-sec-arrow{transform:rotate(90deg)}
+.sb-team-list{overflow:hidden;transition:max-height .25s ease,opacity .2s ease}
+.sb-team-list.closed{max-height:0!important;opacity:0;pointer-events:none}
+.sb-team-list.open{opacity:1}
 .sb-item{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;color:var(--tx3);font-size:12px;font-weight:600;transition:all .12s;border-left:2px solid transparent;user-select:none}
 .sb-item:hover{color:var(--tx2);background:var(--bg2)}
 .sb-item.on{color:var(--or);background:var(--orbg);border-left-color:var(--or)}
@@ -590,7 +597,7 @@ function showSaveError(table,msg){
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────
 const ADMIN='samuel.inacio@hubfloripa.com.br';
-let S={view:'login',user:null,page:'dashboard',collabEmail:null,collabTab:'meetings',period:'mensal',modal:null,ovFilter:'indicators',ovSearch:'',curtainOpen:false,activeMeeting:null,newsTab:'feed',mandouTab:'all',goalsTab:'ativas',implBoard:0,implPaused:false,indView:'grid'};
+let S={view:'login',user:null,page:'dashboard',collabEmail:null,collabTab:'meetings',period:'mensal',modal:null,ovFilter:'indicators',ovSearch:'',curtainOpen:false,activeMeeting:null,newsTab:'feed',mandouTab:'all',goalsTab:'ativas',implBoard:0,implPaused:false,indView:'grid',teamOpen:true};
 let CACHE={users:[],indicators:[],meetings:[],proposals:[],tasks:[],news:[],mandou:[],goals:[],implBoards:[],implCards:[],implFeed:[]};
 // Inline edit state
 let editingCell=null; // {indId, weekDate}
@@ -871,8 +878,27 @@ function rShell(){
     navAdmin=`<div class="sb-sec">Admin</div>
     <div class="sb-item ${S.page==='overview'?'on':''}" onclick="nav('overview')"><span class="sb-ico">◈</span>Visão Geral</div>
     <div class="sb-item ${S.page==='admin'?'on':''}" onclick="nav('admin')"><span class="sb-ico">⊕</span>Colaboradores</div>`;
-    if(collabs.length){navCollab=`<div class="sb-sec">Time</div>`;collabs.forEach(c=>{const cOv=gT(c.email).filter(t=>!t.done&&tst(t.due)==='ov').length,cTd=gT(c.email).filter(t=>!t.done&&tst(t.due)==='td').length;const hasMandou=CACHE.mandou.some(m=>m.to_email===c.email&&isNewMandou(m));
-      navCollab+=`<div class="sb-item ${S.page==='collab'&&S.collabEmail===c.email?'on':''}" onclick="viewCollab('${c.email}')" style="display:flex;align-items:center;gap:7px"><div style="position:relative;flex-shrink:0">${uavHtml(c.email,20)}${hasMandou?'<div class="sb-mandou-badge"></div>':''}</div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(c.name||c.email).split(' ')[0]}</span>${cOv?`<span class="sb-bv">${cOv}</span>`:(cTd?`<span class="sb-bv w">${cTd}</span>`:'')}<button onclick="event.stopPropagation();openModal('newMandou','${c.email}')" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:.4;padding:0 2px;flex-shrink:0;line-height:1;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4" title="Elogiar ${(c.name||c.email).split(' ')[0]}">🌟</button></div>`;});}
+    if(collabs.length){
+      // Calcular total de alertas do time para mostrar no header da sanfona
+      let teamOv=0,teamTd=0,teamMandou=0;
+      collabs.forEach(c=>{
+        teamOv+=gT(c.email).filter(t=>!t.done&&tst(t.due)==='ov').length;
+        teamTd+=gT(c.email).filter(t=>!t.done&&tst(t.due)==='td').length;
+        if(CACHE.mandou.some(m=>m.to_email===c.email&&isNewMandou(m)))teamMandou++;
+      });
+      navCollab=`<div class="sb-sec-toggle ${S.teamOpen?'open':''}" onclick="S.teamOpen=!S.teamOpen;render()">
+        <span>Time <span style="color:var(--tx3);font-weight:500">(${collabs.length})</span></span>
+        <div style="display:flex;align-items:center;gap:5px">
+          ${teamOv?`<span class="sb-bv">${teamOv}</span>`:(teamTd?`<span class="sb-bv w">${teamTd}</span>`:'')}
+          ${teamMandou?`<span style="font-size:9px">🌟</span>`:''}
+          <span class="sb-sec-arrow">▶</span>
+        </div>
+      </div>
+      <div class="sb-team-list ${S.teamOpen?'open':'closed'}" style="max-height:${S.teamOpen?collabs.length*42+'px':'0'}">`;
+      collabs.forEach(c=>{const cOv=gT(c.email).filter(t=>!t.done&&tst(t.due)==='ov').length,cTd=gT(c.email).filter(t=>!t.done&&tst(t.due)==='td').length;const hasMandou=CACHE.mandou.some(m=>m.to_email===c.email&&isNewMandou(m));
+      navCollab+=`<div class="sb-item ${S.page==='collab'&&S.collabEmail===c.email?'on':''}" onclick="viewCollab('${c.email}')" style="display:flex;align-items:center;gap:7px"><div style="position:relative;flex-shrink:0">${uavHtml(c.email,20)}${hasMandou?'<div class="sb-mandou-badge"></div>':''}</div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(c.name||c.email).split(' ')[0]}</span>${cOv?`<span class="sb-bv">${cOv}</span>`:(cTd?`<span class="sb-bv w">${cTd}</span>`:'')}<button onclick="event.stopPropagation();openModal('newMandou','${c.email}')" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:.4;padding:0 2px;flex-shrink:0;line-height:1;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4" title="Elogiar ${(c.name||c.email).split(' ')[0]}">🌟</button></div>`;});
+      navCollab+=`</div>`;
+    }
   }
   const ptitle=S.page==='dashboard'?'Minha Área':S.page==='overview'?'Visão Geral':S.page==='admin'?'Colaboradores':S.page==='mandou'?'Mandou Bem 🌟':S.page==='implant'?'🏗️ Implantações':S.page==='implReport'?'📊 Relatório de Implantações':S.page==='perfDash'?'⚡ Dashboard de Performance':S.page==='collab'?(gU().find(x=>x.email===S.collabEmail)?.name||'Colaborador'):'';
   const topSub=S.page==='collab'?`<span class="tb-sep">/</span><span class="tb-sub">${esc(gU().find(x=>x.email===S.collabEmail)?.name||'')}</span>`:'';
@@ -897,7 +923,7 @@ function rShell(){
       <div class="sb-item ${S.collabTab==='goals'?'on':''}" onclick="setTab('goals')"><span class="sb-ico">🎯</span>Metas</div>
       <div class="sb-item ${S.collabTab==='proposals'?'on':''}" onclick="setTab('proposals')"><span class="sb-ico">📋</span>Propostas</div>
       <div class="sb-item ${S.collabTab==='tasks'?'on':''}" onclick="setTab('tasks')"><span class="sb-ico">✅</span>Tarefas${myOv?`<span class="sb-bv">${myOv}</span>`:(myTd?`<span class="sb-bv w">${myTd}</span>`:'')}</div>`:''}
-      <div class="sb-sec">Comunidade</div>
+      <div class="sb-sec">Ferramentas</div>
       <div class="sb-mandou ${S.page==='mandou'?'on':''}" onclick="nav('mandou')"><span style="font-size:14px">🌟</span>Mandou Bem</div>
       <div class="sb-item ${S.page==='implant'?'on':''}" onclick="nav('implant')"><span class="sb-ico">🏗️</span>Implantações</div>
       ${isAdmin()?`<div class="sb-item ${S.page==='implReport'?'on':''}" onclick="nav('implReport')"><span class="sb-ico">📊</span>Relatório</div>
