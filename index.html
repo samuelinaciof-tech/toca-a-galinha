@@ -1226,7 +1226,10 @@ function rModal(){
         <div class="fg"><label class="fl">Prazo</label><input type="date" class="fi" id="m_gdue" value="${ex?.deadline||today()}"></div>
       </div>
       <div class="fg"><label class="fl">Responsável</label><select class="fs" id="m_gresp">
-        ${gU().map(u=>`<option value="${esc(u.email)}" ${(ex?.responsible===u.email)||(email===u.email&&!ex)?'selected':''}>${esc(u.name||u.email)}</option>`).join('')}
+        ${gU().map(u=>{
+          const isSel=ex?ex.responsible===u.email:u.email===email;
+          return`<option value="${esc(u.email)}" ${isSel?'selected':''}>${esc(u.name||u.email)}</option>`;
+        }).join('')}
       </select></div>
     </div>
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveGoal('${ex?.id||''}','${email}')">Salvar Meta</button></div>`;
@@ -1454,16 +1457,21 @@ window.changeGoalStatus=async(id,newStatus,e)=>{
 };
 
 window.saveGoal=async(editId,email)=>{
-  const text=gv('m_gtxt'),type=gv('m_gtype'),deadline=gv('m_gdue'),responsible=gv('m_gresp');
+  const text=gv('m_gtxt'),type=gv('m_gtype'),deadline=gv('m_gdue');
+  // Pega responsible do select — fallback para o email passado
+  const responsible=gv('m_gresp')||email;
   if(!text){alert('Digite o texto da meta.');return;}
   if(!deadline){alert('Defina o prazo.');return;}
+  if(!responsible){alert('Selecione o responsável.');return;}
+  console.log('saveGoal — responsible:',responsible,'email:',email);
   if(editId){
-    await sb('goals','PATCH',{text,type,deadline,responsible},`?id=eq.${editId}`);
+    const res=await sb('goals','PATCH',{text,type,deadline,responsible},`?id=eq.${editId}`);
     const idx=CACHE.goals.findIndex(g=>g.id===editId);
     if(idx>=0)CACHE.goals[idx]={...CACHE.goals[idx],text,type,deadline,responsible};
   } else {
-    const entry={id:uid(),user_email:S.user.email,text,type,deadline,responsible,status:'on_track',created_at:new Date().toISOString()};
-    await sb('goals','POST',entry);CACHE.goals.unshift(entry);
+    const entry={id:uid(),user_email:responsible,text,type,deadline,responsible,status:'on_track',created_at:new Date().toISOString()};
+    const res=await sb('goals','POST',entry);
+    if(res)CACHE.goals.unshift(Array.isArray(res)?res[0]:entry);
   }
   S.modal=null;render();
 };
@@ -1543,9 +1551,9 @@ function rImplant(){
   const allCards=CACHE.implCards.filter(c=>c.board_id===board.id);
   const phases=board.phases||[];
 
-  // Summary global
+  // Summary do board atual (não global)
   let totOk=0,totAt=0,totPa=0,totDn=0;
-  CACHE.implCards.forEach(c=>{const s=implCardStatus(c);if(s==='ok')totOk++;else if(s==='at')totAt++;else if(s==='pa')totPa++;else if(s==='dn')totDn++;});
+  allCards.forEach(c=>{const s=implCardStatus(c);if(s==='ok')totOk++;else if(s==='at')totAt++;else if(s==='pa')totPa++;else if(s==='dn')totDn++;});
 
   // Dots
   const dots=boards.map((b,i)=>`<button class="impl-dot${i===bi?' on':''}" onclick="implGoTo(${i})" title="${esc(b.name)}"></button>`).join('');
@@ -1674,7 +1682,11 @@ function rImplModalContent(type,id){
     const sCls=implStatusCls(s);
     const days=implDays(card);
     const feed=(CACHE.implFeed.filter(f=>f.card_id===id)).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    const pauseList=(card.pauses||[]).map((p,i)=>`<div class="impl-pause-item"><span style="font-weight:700">⏸ ${p.dias}d</span><span>${esc(p.motivo)}</span></div>`).join('');
+    const pauseList=(card.pauses||[]).map((p,i)=>{
+      const diasCalc=p.inicio&&p.fim?Math.max(1,Math.round((new Date(p.fim+'T00:00:00')-new Date(p.inicio+'T00:00:00'))/(1000*60*60*24))):p.dias||0;
+      const periodo=p.inicio?`${fd(p.inicio)}${p.fim?' → '+fd(p.fim):''}`:(`${diasCalc}d`);
+      return`<div class="impl-pause-item"><span style="font-weight:700;color:#fbbf24;flex-shrink:0">⏸ ${periodo}</span><span>${esc(p.motivo)}</span></div>`;
+    }).join('');
 
     return`<div class="mh"><div class="mt impl-modal">${esc(card.client_name)}</div><button class="mx" onclick="closeModal()">✕</button></div>
     <div class="mb">
@@ -1717,7 +1729,10 @@ function rImplModalContent(type,id){
     return`<div class="mh"><div class="mt">Registrar Pausa</div><button class="mx" onclick="closeModal()">✕</button></div>
     <div class="mb">
       <div class="fg"><label class="fl">Motivo</label><input class="fi" id="ip_motivo" placeholder="Ex: Aguardando retorno do cliente"></div>
-      <div class="fg"><label class="fl">Dias pausado</label><input type="number" class="fi" id="ip_dias" placeholder="Ex: 5" min="1"></div>
+      <div class="fr fr2">
+        <div class="fg"><label class="fl">Data Início</label><input type="date" class="fi" id="ip_inicio" value="${today()}"></div>
+        <div class="fg"><label class="fl">Data Fim (previsão)</label><input type="date" class="fi" id="ip_fim"></div>
+      </div>
     </div>
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveImplPause('${id}')">Registrar Pausa</button></div>`;
   }
@@ -1806,15 +1821,44 @@ window.implMoveCard=async(cardId)=>{
 
 // Pausa
 window.saveImplPause=async(cardId)=>{
-  const motivo=gv('ip_motivo'),dias=parseInt(gv('ip_dias'));
-  if(!motivo||!dias||dias<1){alert('Preencha motivo e dias.');return;}
+  const motivo=gv('ip_motivo'),inicio=gv('ip_inicio'),fim=gv('ip_fim');
+  if(!motivo){alert('Preencha o motivo.');return;}
+  if(!inicio){alert('Informe a data de início.');return;}
+  // Calcula dias entre início e fim (ou usa 1 se fim não preenchido)
+  let dias=1;
+  if(fim&&fim>inicio){
+    dias=Math.max(1,Math.round((new Date(fim+'T00:00:00')-new Date(inicio+'T00:00:00'))/(1000*60*60*24)));
+  } else if(fim&&fim===inicio){
+    dias=1;
+  }
   const card=CACHE.implCards.find(c=>c.id===cardId);if(!card)return;
-  const pauses=[...(card.pauses||[]),{motivo,dias}];
+  const board=CACHE.implBoards.find(b=>b.id===card.board_id);
+  const pauses=[...(card.pauses||[]),{motivo,inicio,fim,dias}];
   await sb('implant_cards','PATCH',{pauses,status:'pa',updated_at:new Date().toISOString()},`?id=eq.${cardId}`);
   const idx=CACHE.implCards.findIndex(c=>c.id===cardId);
   if(idx>=0)CACHE.implCards[idx]={...CACHE.implCards[idx],pauses,status:'pa'};
-  const f={id:uid(),card_id:cardId,user_email:S.user.email,type:'warn',content:`Pausa · ${dias}d · ${motivo}`,created_at:new Date().toISOString()};
+  // Feed do card
+  const periodoTxt=fim?`${fd(inicio)} → ${fd(fim)} (${dias}d)`:`a partir de ${fd(inicio)}`;
+  const f={id:uid(),card_id:cardId,user_email:S.user.email,type:'warn',
+    content:`Pausa registrada · ${periodoTxt} · ${motivo}`,
+    created_at:new Date().toISOString()};
   await sb('implant_feed','POST',f);CACHE.implFeed.push(f);
+  // Notícia para o admin
+  const newsEntry={
+    id:uid(),
+    from_email:S.user.email,
+    from_name:S.user.name||S.user.email,
+    title:`⏸ Pausa: ${card.client_name}${board?' ('+board.name+')':''}`,
+    body:`Cliente <strong>${card.client_name}</strong> pausado.
+Motivo: ${motivo}
+Período: ${periodoTxt}`,
+    type:'news',
+    recipients:[ADMIN],
+    target_label:'Admin',
+    read_by:[],
+    created_at:new Date().toISOString()
+  };
+  await sb('news','POST',newsEntry);CACHE.news.unshift(newsEntry);
   S.modal=null;render();
 };
 
