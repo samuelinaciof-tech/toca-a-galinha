@@ -308,12 +308,17 @@ input[type=checkbox]{accent-color:var(--or);cursor:pointer;width:13px;height:13p
 .ll{font-family:var(--fs);font-size:28px;font-weight:800;color:var(--tx);letter-spacing:.5px;margin-bottom:2px}
 .ll span{color:var(--or)}
 .ls{font-size:11px;color:var(--tx3);font-weight:600;margin-bottom:24px}
-.li{width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--ln3);border-radius:var(--r);color:var(--tx);font-family:var(--fj);font-size:12px;font-weight:500;outline:none;transition:border .12s}
+.li{width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--ln3);border-radius:var(--r);color:var(--tx);font-family:var(--fj);font-size:12px;font-weight:500;outline:none;transition:border .12s;margin-bottom:8px}
 .li:focus{border-color:var(--or)}
-.lbtn{width:100%;margin-top:11px;padding:11px;background:var(--or);border:none;border-radius:var(--r);color:#0a0b0e;font-family:var(--fs);font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:background .12s;box-shadow:0 4px 18px #ff8c4228}
+.li-wrap{position:relative}
+.li-eye{position:absolute;right:10px;top:50%;transform:translateY(-60%);background:none;border:none;cursor:pointer;color:var(--tx3);font-size:14px;padding:2px}
+.li-eye:hover{color:var(--tx)}
+.lbtn{width:100%;margin-top:4px;padding:11px;background:var(--or);border:none;border-radius:var(--r);color:#0a0b0e;font-family:var(--fs);font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:background .12s;box-shadow:0 4px 18px #ff8c4228}
 .lbtn:hover{background:var(--or2)}
 .lmsg{margin-top:10px;font-size:12px;font-weight:600;min-height:16px}
 .lmsg.ok{color:var(--grn)}.lmsg.err{color:var(--red)}
+.l-forgot{font-size:10px;color:var(--tx3);text-align:right;margin-top:-4px;margin-bottom:10px;cursor:pointer;font-weight:500}
+.l-forgot:hover{color:var(--or)}
 
 /* PROFILE PHOTO UPLOAD */
 .photo-upload{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 0}
@@ -685,15 +690,49 @@ function uavHtml(email,size=22){
 function showLoading(msg='Carregando...'){ge('app').innerHTML=`<div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);gap:14px"><div style="font-size:28px">🐔</div><div style="font-family:var(--fs);font-size:16px;font-weight:800;color:var(--or)">${msg}</div><div style="width:180px;height:2px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;background:var(--or);border-radius:2px;animation:ldbar 1.2s ease-in-out infinite"></div></div></div><style>@keyframes ldbar{0%{width:0;margin-left:0}50%{width:100%;margin-left:0}100%{width:0;margin-left:100%}}</style>`;}
 
 // ── AUTH ───────────────────────────────────────────────────────────────
-async function sendLink(email){const u=CACHE.users.find(u=>u.email.toLowerCase()===email.toLowerCase());if(!u)return{ok:false,msg:'E-mail não encontrado.'};const token=uid();await sb('tokens','POST',{token,email:u.email,exp:Date.now()+600000});return{ok:true,token};}
-async function loginTok(t){const rows=await sb('tokens','GET',null,`?token=eq.${t}&select=*`);if(!rows||!rows.length)return null;const tk=rows[0];if(Date.now()>tk.exp)return null;return CACHE.users.find(u=>u.email===tk.email)||null;}
+// ── AUTH COM SENHA ────────────────────────────────────────────────
+// Hash SHA-256 no cliente (nunca envia senha em texto plano)
+async function hashPass(pass){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pass));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+// Sessão: salva email no localStorage com expiração de 8h
+const SESSION_KEY='toca_session';
+const SESSION_TTL=8*60*60*1000; // 8 horas
+
+function saveSession(email){
+  localStorage.setItem(SESSION_KEY,JSON.stringify({email,exp:Date.now()+SESSION_TTL}));
+}
+function loadSession(){
+  try{
+    const raw=localStorage.getItem(SESSION_KEY);
+    if(!raw)return null;
+    const s=JSON.parse(raw);
+    if(Date.now()>s.exp){localStorage.removeItem(SESSION_KEY);return null;}
+    return s.email;
+  }catch{return null;}
+}
+function clearSession(){localStorage.removeItem(SESSION_KEY);}
+
+// Login com senha
+async function loginWithPass(email,pass){
+  const hash=await hashPass(pass);
+  // Busca usuário pelo email + hash da senha
+  const rows=await sb('users','GET',null,`?email=eq.${encodeURIComponent(email)}&password_hash=eq.${hash}&select=*`);
+  if(!rows||!rows.length)return null;
+  return rows[0];
+}
 
 // ── RENDER ─────────────────────────────────────────────────────────────
 function render(){
   try{
     ge('app').innerHTML=S.view==='login'?rLogin():rShell();
     renderCurtain();
-    if(S.view==='login'){const li=ge('lEmail');if(li)li.addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});}
+    if(S.view==='login'){
+    const li=ge('lEmail');if(li)li.addEventListener('keydown',e=>{if(e.key==='Enter')ge('lPass')?.focus();});
+    const lp=ge('lPass');if(lp)lp.addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+  }
   }catch(err){
     console.error('Render error:',err);
     const app=ge('app');
@@ -708,47 +747,48 @@ function render(){
 window.closeModal=()=>{S.modal=null;render()};
 
 // ── LOGIN ──────────────────────────────────────────────────────────────
-function rLogin(){return`<div class="lw"><div class="lb"><div class="ll">🐔 <span>Toca a Galinha</span></div><div class="ls">Hub Floripa · Sistema de Gestão de Times</div><label class="fl">E-mail corporativo</label><input class="li" type="email" id="lEmail" placeholder="seuemail@empresa.com.br" autocomplete="email"><button class="lbtn" id="lBtn" onclick="handleLogin()">ENTRAR</button><div class="lmsg" id="lMsg"></div></div></div>`;}
-async function handleLogin(){
-  const email=ge('lEmail').value.trim();const msg=ge('lMsg');const btn=ge('lBtn');
-  if(!email){msg.textContent='Digite seu e-mail.';msg.className='lmsg err';return;}
-  btn.textContent='Verificando...';btn.disabled=true;
-  // Sempre busca users frescos do Supabase
-  const u=await safeSb('users','?select=*');
-  CACHE.users=u.length?u:CACHE.users;
-  if(!CACHE.users.length){
-    msg.textContent='Erro ao conectar ao servidor. Tente novamente.';
-    msg.className='lmsg err';btn.textContent='ENTRAR';btn.disabled=false;return;
-  }
-  const r=await sendLink(email);
-  btn.textContent='ENTRAR';btn.disabled=false;
-  if(!r.ok){msg.textContent=r.msg;msg.className='lmsg err';return;}
-  msg.innerHTML=`✓ Acesso enviado! <a href="#" onclick="doLogin('${r.token}');return false" style="color:var(--or);font-weight:700">Clique para entrar →</a>`;
-  msg.className='lmsg ok';
+function rLogin(){
+  return`<div class="lw"><div class="lb">
+    <div class="ll">🐔 <span>Toca a Galinha</span></div>
+    <div class="ls">Hub Floripa · Sistema de Gestão de Times</div>
+    <label class="fl">E-mail</label>
+    <input class="li" type="email" id="lEmail" placeholder="seuemail@empresa.com.br" autocomplete="email">
+    <label class="fl">Senha</label>
+    <div class="li-wrap">
+      <input class="li" type="password" id="lPass" placeholder="••••••••" autocomplete="current-password" style="margin-bottom:0;padding-right:36px">
+      <button class="li-eye" onclick="togglePassVis()" id="lEye" tabindex="-1">👁</button>
+    </div>
+    <button class="lbtn" id="lBtn" onclick="handleLogin()" style="margin-top:14px">ENTRAR</button>
+    <div class="lmsg" id="lMsg"></div>
+  </div></div>`;
 }
-window.doLogin=async function(t){
-  showLoading('Entrando...');
+window.togglePassVis=()=>{
+  const p=ge('lPass');if(!p)return;
+  p.type=p.type==='password'?'text':'password';
+};
+async function handleLogin(){
+  const email=ge('lEmail')?.value.trim();
+  const pass=ge('lPass')?.value;
+  const msg=ge('lMsg');const btn=ge('lBtn');
+  if(!email){msg.textContent='Digite seu e-mail.';msg.className='lmsg err';return;}
+  if(!pass){msg.textContent='Digite sua senha.';msg.className='lmsg err';return;}
+  btn.textContent='Entrando...';btn.disabled=true;
+  msg.textContent='';msg.className='lmsg';
+  showLoading('Verificando...');
   try{
-    // Garante users carregados
-    if(!CACHE.users.length){
-      const u=await safeSb('users','?select=*');
-      CACHE.users=u;
-    }
-    const u=await loginTok(t);
+    const u=await loginWithPass(email,pass);
     if(!u){
-      showLoading('Token inválido ou expirado.');
-      setTimeout(()=>render(),1500);
+      ge('app').innerHTML='';render();
+      const msg2=ge('lMsg');const btn2=ge('lBtn');
+      if(msg2){msg2.textContent='E-mail ou senha incorretos.';msg2.className='lmsg err';}
+      if(btn2){btn2.textContent='ENTRAR';btn2.disabled=false;}
       return;
     }
     S.user=u;
+    saveSession(u.email);
     showLoading('Carregando dados...');
     await loadAll();
-    // Segurança: se users voltou vazio, tenta de novo
-    if(!CACHE.users.length){
-      console.warn('loadAll retornou users vazio, retentando...');
-      await new Promise(r=>setTimeout(r,800));
-      await loadAll();
-    }
+    if(!CACHE.users.length){await new Promise(r=>setTimeout(r,800));await loadAll();}
     S.view='app';
     S.page=isAdmin()?'dashboard':'collab';
     S.collabEmail=isAdmin()?null:S.user.email;
@@ -756,11 +796,34 @@ window.doLogin=async function(t){
     render();
     setTimeout(()=>checkLoginAlerts(),600);
   }catch(e){
-    console.error('doLogin erro:',e);
-    showLoading('Erro ao carregar. Recarregue a página.');
-    setTimeout(()=>{S.view='login';render();},3000);
+    console.error('handleLogin erro:',e);
+    ge('app').innerHTML='';render();
+    const msg2=ge('lMsg');if(msg2){msg2.textContent='Erro ao conectar. Tente novamente.';msg2.className='lmsg err';}
+    const btn2=ge('lBtn');if(btn2){btn2.textContent='ENTRAR';btn2.disabled=false;}
   }
-};
+}
+// Restaurar sessão do localStorage (chamado no INIT)
+async function tryRestoreSession(){
+  const email=loadSession();
+  if(!email)return false;
+  showLoading('Restaurando sessão...');
+  try{
+    await loadAll();
+    if(!CACHE.users.length){await new Promise(r=>setTimeout(r,800));await loadAll();}
+    const u=CACHE.users.find(x=>x.email===email);
+    if(!u){clearSession();return false;}
+    S.user=u;
+    S.view='app';
+    S.page=isAdmin()?'dashboard':'collab';
+    S.collabEmail=isAdmin()?null:S.user.email;
+    S.collabTab='meetings';
+    render();
+    setTimeout(()=>checkLoginAlerts(),600);
+    return true;
+  }catch(e){
+    clearSession();return false;
+  }
+}
 
 // ── SHELL ──────────────────────────────────────────────────────────────
 function rShell(){
@@ -819,7 +882,7 @@ function rShell(){
 
 window.nav=p=>{if(p!=='implant')implStopCarousel();S.page=p;if(p!=='collab')S.collabEmail=null;render()};
 window.setPeriod=p=>{S.period=p;render()};
-window.logout=()=>{S.user=null;S.view='login';if(timerInterval)clearInterval(timerInterval);render()};
+window.logout=()=>{clearSession();S.user=null;S.view='login';if(timerInterval)clearInterval(timerInterval);render()};
 window.viewCollab=e=>{S.collabEmail=e;S.page='collab';S.collabTab='meetings';render()};
 window.setTab=t=>{S.collabTab=t;if(!isAdmin()){S.page='collab';S.collabEmail=S.user.email;}render()};
 
@@ -2219,7 +2282,10 @@ function updateDashTopbar(){
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
-render();
+(async()=>{
+  const restored=await tryRestoreSession();
+  if(!restored)render();
+})();
 </script>
 </body>
 </html>
