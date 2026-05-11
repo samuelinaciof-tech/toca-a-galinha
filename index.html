@@ -766,6 +766,10 @@ window.togglePassVis=()=>{
   const p=ge('lPass');if(!p)return;
   p.type=p.type==='password'?'text':'password';
 };
+window.toggleFieldVis=(fieldId)=>{
+  const p=ge(fieldId);if(!p)return;
+  p.type=p.type==='password'?'text':'password';
+};
 async function handleLogin(){
   const email=ge('lEmail')?.value.trim();
   const pass=ge('lPass')?.value;
@@ -1357,6 +1361,16 @@ function rModal(){
       <div class="fg"><label class="fl">Nome</label><input class="fi" id="m_un" value="${esc(ex?.name||'')}" placeholder="Nome completo"></div>
       <div class="fg"><label class="fl">E-mail</label><input class="fi" id="m_ue" value="${esc(ex?.email||'')}" placeholder="email@empresa.com.br" ${ex?'disabled':''}></div>
       <div class="fg"><label class="fl">Empresa</label><input class="fi" id="m_uco" value="${esc(ex?.company||'')}" placeholder="Nome da empresa"></div>
+      ${ex?`<div class="dv"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔑 Alterar senha</div>
+      <div class="fg"><label class="fl">Nova senha <span style="color:var(--tx4);font-weight:400">(deixe vazio para não alterar)</span></label>
+        <div class="li-wrap"><input class="fi" type="password" id="m_unewpass" placeholder="Nova senha..." style="padding-right:36px">
+        <button class="li-eye" onclick="toggleFieldVis('m_unewpass')" tabindex="-1">👁</button></div>
+      </div>
+      <div class="fg"><label class="fl">Confirmar senha</label>
+        <div class="li-wrap"><input class="fi" type="password" id="m_uconfpass" placeholder="Repita a senha...">
+        </div>
+      </div>`:''}
     </div>
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveUser('${id||''}')">Salvar</button></div>`;
   }
@@ -1400,6 +1414,20 @@ function rModal(){
         <button class="btn btn-gh btn-sm" onclick="document.getElementById('photoFile').click()">Alterar foto</button>
       </div>
       <div class="fg"><label class="fl">Nome</label><input class="fi" id="m_pname" value="${esc(me?.name||'')}"></div>
+      <div class="dv"></div>
+      <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔑 Alterar senha</div>
+      <div class="fg"><label class="fl">Senha atual</label>
+        <div class="li-wrap"><input class="fi" type="password" id="m_pcurrpass" placeholder="Senha atual..." style="padding-right:36px">
+        <button class="li-eye" onclick="toggleFieldVis('m_pcurrpass')" tabindex="-1">👁</button></div>
+      </div>
+      <div class="fg"><label class="fl">Nova senha</label>
+        <div class="li-wrap"><input class="fi" type="password" id="m_pnewpass" placeholder="Nova senha..." style="padding-right:36px">
+        <button class="li-eye" onclick="toggleFieldVis('m_pnewpass')" tabindex="-1">👁</button></div>
+      </div>
+      <div class="fg"><label class="fl">Confirmar nova senha</label>
+        <input class="fi" type="password" id="m_pconfpass" placeholder="Repita a nova senha...">
+      </div>
+      <div id="passMsg" style="font-size:11px;font-weight:600;min-height:14px;margin-top:4px"></div>
     </div>
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveProfile()">Salvar</button></div>`;
   }
@@ -1502,9 +1530,27 @@ window.saveTask=async(email,editId)=>{
 };
 
 window.saveUser=async(editEmail)=>{
-  const name=gv('m_un'),email=gv('m_ue'),company=gv('m_uco');if(!email){alert('Digite o e-mail.');return;}
-  if(editEmail){await sb('users','PATCH',{name,company},`?email=eq.${editEmail}`);const idx=CACHE.users.findIndex(u=>u.email===editEmail);if(idx>=0)CACHE.users[idx]={...CACHE.users[idx],name,company};}
-  else{if(CACHE.users.find(u=>u.email.toLowerCase()===email.toLowerCase())){alert('E-mail já cadastrado.');return;}const nu={email,name,company,role:'collaborator'};await sb('users','POST',nu);CACHE.users.push(nu);}
+  const name=gv('m_un'),email=gv('m_ue'),company=gv('m_uco');
+  if(!email){alert('Digite o e-mail.');return;}
+  if(editEmail){
+    const patch={name,company};
+    // Verificar se admin quer alterar a senha
+    const newPass=ge('m_unewpass')?.value||'';
+    const confPass=ge('m_uconfpass')?.value||'';
+    if(newPass){
+      if(newPass.length<6){alert('A senha deve ter ao menos 6 caracteres.');return;}
+      if(newPass!==confPass){alert('As senhas não coincidem.');return;}
+      patch.password_hash=await hashPass(newPass);
+    }
+    await sb('users','PATCH',patch,`?email=eq.${editEmail}`);
+    const idx=CACHE.users.findIndex(u=>u.email===editEmail);
+    if(idx>=0)CACHE.users[idx]={...CACHE.users[idx],...patch};
+    if(newPass)alert('✓ Senha alterada com sucesso!');
+  } else {
+    if(CACHE.users.find(u=>u.email.toLowerCase()===email.toLowerCase())){alert('E-mail já cadastrado.');return;}
+    const nu={email,name,company,role:'collaborator'};
+    await sb('users','POST',nu);CACHE.users.push(nu);
+  }
   S.modal=null;render();
 };
 
@@ -1562,11 +1608,28 @@ window.saveProfile=async()=>{
   const name=gv('m_pname');
   const patch={name};
   if(window._photoData)patch.photo_url=window._photoData;
-  await sb('users','PATCH',patch,`?email=eq.${S.user.email}`);
+  // Troca de senha (opcional)
+  const currPass=ge('m_pcurrpass')?.value||'';
+  const newPass=ge('m_pnewpass')?.value||'';
+  const confPass=ge('m_pconfpass')?.value||'';
+  const passMsg=ge('passMsg');
+  if(newPass||currPass){
+    if(!currPass){if(passMsg){passMsg.textContent='Digite a senha atual.';passMsg.style.color='var(--red)';}return;}
+    if(newPass.length<6){if(passMsg){passMsg.textContent='A nova senha deve ter ao menos 6 caracteres.';passMsg.style.color='var(--red)';}return;}
+    if(newPass!==confPass){if(passMsg){passMsg.textContent='As senhas não coincidem.';passMsg.style.color='var(--red)';}return;}
+    // Verificar senha atual
+    const currHash=await hashPass(currPass);
+    const check=await sb('users','GET',null,`?email=eq.${S.user.email}&password_hash=eq.${currHash}&select=email`);
+    if(!check||!check.length){if(passMsg){passMsg.textContent='Senha atual incorreta.';passMsg.style.color='var(--red)';}return;}
+    patch.password_hash=await hashPass(newPass);
+  }
+  const res=await sb('users','PATCH',patch,`?email=eq.${S.user.email}`);
+  if(res===null){alert('Erro ao salvar. Tente novamente.');return;}
   const idx=CACHE.users.findIndex(u=>u.email===S.user.email);
   if(idx>=0)CACHE.users[idx]={...CACHE.users[idx],...patch};
   S.user={...S.user,...patch};
   window._photoData=null;S.modal=null;render();
+  if(patch.password_hash)alert('✓ Senha alterada com sucesso!');
 };
 
 // Delete ops
