@@ -460,6 +460,34 @@ input[type=checkbox]{accent-color:var(--or);cursor:pointer;width:13px;height:13p
 .impl-phase-chip button{background:none;border:none;color:var(--tx4);cursor:pointer;font-size:12px;line-height:1;padding:0 1px}
 .impl-phase-chip button:hover{color:var(--red)}
 
+/* ── RELATÓRIO IMPLANTAÇÕES ── */
+.impl-report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.impl-report-card{background:var(--bg2);border:1px solid var(--ln2);border-radius:var(--r2);padding:14px 16px}
+.impl-report-label{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.impl-report-value{font-family:var(--fs);font-size:22px;font-weight:800;color:var(--tx);line-height:1}
+.impl-report-sub{font-size:10px;color:var(--tx3);margin-top:3px}
+.impl-report-table{background:var(--bg2);border:1px solid var(--ln2);border-radius:var(--r2);overflow:hidden;margin-bottom:16px}
+.impl-report-table table{width:100%;border-collapse:collapse}
+.impl-report-table th{padding:8px 12px;font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;text-align:left;border-bottom:1px solid var(--ln2);background:var(--bg3)}
+.impl-report-table td{padding:8px 12px;font-size:11px;font-weight:500;color:var(--tx2);border-bottom:1px solid var(--ln)}
+.impl-report-table tr:last-child td{border-bottom:none}
+.impl-report-table tr:hover td{background:var(--bg3);color:var(--tx)}
+
+/* ── DASHBOARD PERFORMANCE ── */
+.perf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}
+.perf-card{background:var(--bg2);border:1px solid var(--ln2);border-radius:var(--r2);padding:16px}
+.perf-card-title{font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.perf-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--ln)}
+.perf-row:last-child{border-bottom:none}
+.perf-rank{font-family:var(--fs);font-size:12px;font-weight:800;color:var(--tx4);width:18px;flex-shrink:0;text-align:center}
+.perf-bar-bg{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.perf-bar{height:100%;border-radius:3px;transition:width .5s}
+.perf-val{font-size:11px;font-weight:800;color:var(--tx);flex-shrink:0;min-width:30px;text-align:right}
+.perf-impl-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--ln);font-size:11px}
+.perf-impl-row:last-child{border-bottom:none}
+.perf-impl-client{flex:1;font-weight:600;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.perf-impl-days{font-family:var(--fs);font-size:12px;font-weight:800;color:var(--or);flex-shrink:0}
+
 /* ── MODO DASHBOARD (sem sidebar, fullscreen TV) ── */
 .dash-mode .sb{display:none!important}
 .dash-mode .main{width:100%}
@@ -625,6 +653,7 @@ const ge=id=>document.getElementById(id);
 const gv=id=>{const e=ge(id);return e?e.value.trim():''};
 const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const isAdmin=()=>S.user?.email===ADMIN;
+const canEditImpl=()=>isAdmin()||(CACHE.users.find(u=>u.email===S.user?.email)?.implant_access===true);
 
 // Mandou Bem: considera "novo" se criado nas últimas 72h e usuário ainda não viu
 function isNewMandou(m){
@@ -845,7 +874,7 @@ function rShell(){
     if(collabs.length){navCollab=`<div class="sb-sec">Time</div>`;collabs.forEach(c=>{const cOv=gT(c.email).filter(t=>!t.done&&tst(t.due)==='ov').length,cTd=gT(c.email).filter(t=>!t.done&&tst(t.due)==='td').length;const hasMandou=CACHE.mandou.some(m=>m.to_email===c.email&&isNewMandou(m));
       navCollab+=`<div class="sb-item ${S.page==='collab'&&S.collabEmail===c.email?'on':''}" onclick="viewCollab('${c.email}')" style="display:flex;align-items:center;gap:7px"><div style="position:relative;flex-shrink:0">${uavHtml(c.email,20)}${hasMandou?'<div class="sb-mandou-badge"></div>':''}</div><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(c.name||c.email).split(' ')[0]}</span>${cOv?`<span class="sb-bv">${cOv}</span>`:(cTd?`<span class="sb-bv w">${cTd}</span>`:'')}<button onclick="event.stopPropagation();openModal('newMandou','${c.email}')" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:.4;padding:0 2px;flex-shrink:0;line-height:1;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4" title="Elogiar ${(c.name||c.email).split(' ')[0]}">🌟</button></div>`;});}
   }
-  const ptitle=S.page==='dashboard'?'Minha Área':S.page==='overview'?'Visão Geral':S.page==='admin'?'Colaboradores':S.page==='mandou'?'Mandou Bem 🌟':S.page==='implant'?'🏗️ Implantações':S.page==='collab'?(gU().find(x=>x.email===S.collabEmail)?.name||'Colaborador'):'';
+  const ptitle=S.page==='dashboard'?'Minha Área':S.page==='overview'?'Visão Geral':S.page==='admin'?'Colaboradores':S.page==='mandou'?'Mandou Bem 🌟':S.page==='implant'?'🏗️ Implantações':S.page==='implReport'?'📊 Relatório de Implantações':S.page==='perfDash'?'⚡ Dashboard de Performance':S.page==='collab'?(gU().find(x=>x.email===S.collabEmail)?.name||'Colaborador'):'';
   const topSub=S.page==='collab'?`<span class="tb-sep">/</span><span class="tb-sub">${esc(gU().find(x=>x.email===S.collabEmail)?.name||'')}</span>`:'';
   return`<div class="shell" style="margin-right:${S.curtainOpen?'380px':'0'};transition:margin .3s">
   <nav class="sb">
@@ -870,7 +899,9 @@ function rShell(){
       <div class="sb-item ${S.collabTab==='tasks'?'on':''}" onclick="setTab('tasks')"><span class="sb-ico">✅</span>Tarefas${myOv?`<span class="sb-bv">${myOv}</span>`:(myTd?`<span class="sb-bv w">${myTd}</span>`:'')}</div>`:''}
       <div class="sb-sec">Comunidade</div>
       <div class="sb-mandou ${S.page==='mandou'?'on':''}" onclick="nav('mandou')"><span style="font-size:14px">🌟</span>Mandou Bem</div>
-      ${isAdmin()?`<div class="sb-item ${S.page==='implant'?'on':''}" onclick="nav('implant')"><span class="sb-ico">🏗️</span>Implantações</div>`:''}
+      <div class="sb-item ${S.page==='implant'?'on':''}" onclick="nav('implant')"><span class="sb-ico">🏗️</span>Implantações</div>
+      ${isAdmin()?`<div class="sb-item ${S.page==='implReport'?'on':''}" onclick="nav('implReport')"><span class="sb-ico">📊</span>Relatório</div>
+      <div class="sb-item ${S.page==='perfDash'?'on':''}" onclick="nav('perfDash')"><span class="sb-ico">⚡</span>Performance</div>`:''}
     </div>
     <div style="padding:8px 10px;border-top:1px solid var(--ln2)">
       <button class="sb-toca" onclick="openTocaModal()">🐔 Toca a Galinha!</button>
@@ -896,6 +927,8 @@ function rPage(){
   if(S.page==='admin')return rAdmin();
   if(S.page==='mandou')return rMandou();
   if(S.page==='implant')return rImplant();
+  if(S.page==='implReport')return rImplReport();
+  if(S.page==='perfDash')return rPerfDash();
   if(S.page==='collab')return rFull(S.collabEmail,true);
   if(!isAdmin())return rFull(S.user.email,true);
   return'';
@@ -1362,6 +1395,13 @@ function rModal(){
       <div class="fg"><label class="fl">E-mail</label><input class="fi" id="m_ue" value="${esc(ex?.email||'')}" placeholder="email@empresa.com.br" ${ex?'disabled':''}></div>
       <div class="fg"><label class="fl">Empresa</label><input class="fi" id="m_uco" value="${esc(ex?.company||'')}" placeholder="Nome da empresa"></div>
       ${ex?`<div class="dv"></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+        <input type="checkbox" id="m_uimpl" ${ex?.implant_access?'checked':''} style="accent-color:var(--or);width:14px;height:14px;cursor:pointer">
+        <label for="m_uimpl" style="font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer">🏗️ Acesso de edição em Implantações</label>
+      </div>
+      <div style="font-size:10px;color:var(--tx4);margin-top:-4px;margin-bottom:8px;padding-left:24px">Pode mover cards, registrar pausas e atualizar previsões</div>
+      <div class="dv"></div>`:''}
+      ${ex?`<div class="dv"></div>
       <div style="font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔑 Alterar senha</div>
       <div class="fg"><label class="fl">Nova senha <span style="color:var(--tx4);font-weight:400">(deixe vazio para não alterar)</span></label>
         <div class="li-wrap"><input class="fi" type="password" id="m_unewpass" placeholder="Nova senha..." style="padding-right:36px">
@@ -1533,7 +1573,8 @@ window.saveUser=async(editEmail)=>{
   const name=gv('m_un'),email=gv('m_ue'),company=gv('m_uco');
   if(!email){alert('Digite o e-mail.');return;}
   if(editEmail){
-    const patch={name,company};
+    const implant_access=ge('m_uimpl')?.checked||false;
+    const patch={name,company,implant_access};
     // Verificar se admin quer alterar a senha
     const newPass=ge('m_unewpass')?.value||'';
     const confPass=ge('m_uconfpass')?.value||'';
@@ -1823,32 +1864,43 @@ window.implNext=()=>{S.implBoard=(S.implBoard+1)%CACHE.implBoards.length;render(
 
 // Render principal
 function rImplant(){
-  if(!isAdmin()){return`<div class="empty"><div class="ei">🔒</div><div class="et">Sem acesso a este módulo</div></div>`;}
-  const boards=CACHE.implBoards;
-  if(!boards.length){
-    return`<div class="impl-wrap">
-      <div class="ph"><div></div><button class="btn btn-or" onclick="openModal('newImplBoard','')">+ Novo Board</button></div>
-      <div class="empty"><div class="ei">🏗️</div><div class="et">Nenhuma empresa cadastrada. Crie o primeiro board!</div></div>
-    </div>`;
+  const admin=isAdmin();
+  const canEdit=canEditImpl();
+  const myCompany=CACHE.users.find(u=>u.email===S.user?.email)?.company||'';
+
+  // Filtrar boards: admin vê todos, colaborador só o da sua empresa
+  let boards=CACHE.implBoards;
+  if(!admin){
+    boards=boards.filter(b=>b.name.toLowerCase().includes(myCompany.toLowerCase())||myCompany==='');
+    if(!boards.length&&CACHE.implBoards.length)boards=[CACHE.implBoards[0]]; // fallback: primeiro board
   }
+
+  if(!boards.length){
+    if(admin)return`<div class="impl-wrap">
+      <div class="ph"><div></div><button class="btn btn-or" onclick="openModal('newImplBoard','')">+ Novo Board</button></div>
+      <div class="empty"><div class="ei">🏗️</div><div class="et">Nenhuma empresa cadastrada.</div></div>
+    </div>`;
+    return`<div class="empty"><div class="ei">🏗️</div><div class="et">Nenhuma implantação disponível para sua empresa.</div></div>`;
+  }
+
   const bi=Math.min(S.implBoard,boards.length-1);
   const board=boards[bi];
   const allCards=CACHE.implCards.filter(c=>c.board_id===board.id);
   const phases=board.phases||[];
 
-  // Summary do board atual (não global)
+  // Summary do board atual
   let totOk=0,totAt=0,totPa=0,totDn=0;
   allCards.forEach(c=>{const s=implCardStatus(c);if(s==='ok')totOk++;else if(s==='at')totAt++;else if(s==='pa')totPa++;else if(s==='dn')totDn++;});
 
-  // Dots
-  const dots=boards.map((b,i)=>`<button class="impl-dot${i===bi?' on':''}" onclick="implGoTo(${i})" title="${esc(b.name)}"></button>`).join('');
+  // Dots — só se admin (collab vê só seu board)
+  const dots=admin?boards.map((b,i)=>`<button class="impl-dot${i===bi?' on':''}" onclick="implGoTo(${i})" title="${esc(b.name)}"></button>`).join(''):'';
 
   // Kanban columns
   let cols='';
   phases.forEach((phase,pi)=>{
     const phaseCards=allCards.filter(c=>c.phase===pi);
     const hasCds=phaseCards.length>0;
-    let cardsHtml=phaseCards.length?phaseCards.map(c=>implCardHtml(c)).join(''):`<div class="impl-card-empty">—</div>`;
+    let cardsHtml=phaseCards.length?phaseCards.map(c=>implCardHtml(c,canEdit)).join(''):`<div class="impl-card-empty">—</div>`;
     cols+=`<div class="impl-col">
       <div class="impl-col-header">
         <span class="impl-col-name">${esc(phase)}</span>
@@ -1858,6 +1910,18 @@ function rImplant(){
     </div>`;
   });
 
+  // Botões de ação: admin = tudo, canEdit = + cliente, readonly = nada
+  const actionBtns=admin
+    ?`<button class="btn btn-gh btn-sm" onclick="openModal('newImplCard','${board.id}')">+ Cliente</button>
+       <button class="btn btn-gh btn-sm" onclick="openModal('newImplBoard','')">+ Board</button>
+       <button class="btn btn-gh btn-sm" onclick="openModal('editImplBoard','${board.id}')">Editar Board</button>
+       <button class="btn btn-gh btn-sm" onclick="nav('implReport')">📊 Relatório</button>
+       <button class="btn btn-or btn-sm" onclick="enterDashboard()" title="Abrir em modo TV">📺 Dashboard</button>`
+    :canEdit
+      ?`<button class="btn btn-gh btn-sm" onclick="openModal('newImplCard','${board.id}')">+ Cliente</button>
+        <button class="btn btn-or btn-sm" onclick="enterDashboard()">📺 Dashboard</button>`
+      :`<button class="btn btn-or btn-sm" onclick="enterDashboard()">📺 Dashboard</button>`;
+
   const html=`<div class="impl-wrap">
     <div class="impl-header">
       <div class="impl-summary">
@@ -1865,36 +1929,31 @@ function rImplant(){
         <span class="impl-sum-pill at">✗ ${totAt} Atrasado${totAt!==1?'s':''}</span>
         <span class="impl-sum-pill pa">⏸ ${totPa} Pausa${totPa!==1?'s':''}</span>
         <span class="impl-sum-pill dn">● ${totDn} Concluído${totDn!==1?'s':''}</span>
+        ${!canEdit&&!admin?'<span style="font-size:9px;color:var(--tx4);font-weight:600;padding:4px 8px">👁 Somente leitura</span>':''}
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-gh btn-sm" onclick="openModal('newImplCard','${board.id}')">+ Cliente</button>
-        <button class="btn btn-gh btn-sm" onclick="openModal('newImplBoard','')">+ Board</button>
-        <button class="btn btn-gh btn-sm" onclick="openModal('editImplBoard','${board.id}')">Editar Board</button>
-        <button class="btn btn-or btn-sm" onclick="enterDashboard()" title="Abrir em modo TV/Dashboard">📺 Dashboard</button>
-      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${actionBtns}</div>
     </div>
     <div class="impl-progress"><div class="impl-progress-bar" id="implProgressBar" style="width:0%"></div></div>
-    <div class="impl-nav">
+    ${dots?`<div class="impl-nav">
       <div class="impl-nav-dots">${dots}</div>
       <div class="impl-nav-btns">
         <button class="impl-nav-btn" onclick="implPrev()">◀</button>
         <button class="impl-nav-btn${S.implPaused?' paused':''}" onclick="implTogglePause()">${S.implPaused?'▶ Retomar':'⏸ Pausar'}</button>
         <button class="impl-nav-btn" onclick="implNext()">▶</button>
       </div>
-    </div>
+    </div>`:''}
     <div class="impl-board-name">${esc(board.name)} <span>${phases.length} fases · ${allCards.length} clientes</span></div>
     <div class="impl-kanban">${cols}</div>
   </div>`;
 
-  // Inicia carrossel após render
   setTimeout(()=>{
-    implStartCarousel();
+    if(admin)implStartCarousel();
     if(document.querySelector('.shell.dash-mode'))updateDashTopbar();
   },200);
   return html;
 }
 
-function implCardHtml(card){
+function implCardHtml(card,canEdit=true){
   const s=implCardStatus(card);
   const cls=implStatusCls(s);
   const days=implDays(card);
@@ -1907,6 +1966,7 @@ function implCardHtml(card){
   } else {
     dateHtml=`<div class="impl-card-date ${cls}">${card.new_forecast?fd(card.new_forecast):'—'}</div>`;
   }
+  // Readonly: card clicável mas abre modal sem ações de edição
   return`<div class="impl-card ${cls}" onclick="openModal('viewImplCard','${card.id}')">
     <div class="impl-card-client">${esc(card.client_name)}</div>
     ${dateHtml}
@@ -1987,18 +2047,18 @@ function rImplModalContent(type,id){
       </div>
 
       <div class="dv"></div>
-      <div class="fr fr2" style="margin-bottom:10px">
+      ${canEditImpl()?`<div class="fr fr2" style="margin-bottom:10px">
         <div class="fg"><label class="fl">Mover para fase</label><select class="fs" id="ic_movephase">
           ${phases.map((p,i)=>`<option value="${i}" ${card.phase===i?'selected':''}>${esc(p)}</option>`).join('')}
         </select></div>
         <div class="fg"><label class="fl">Nova Previsão</label><input type="date" class="fi" id="ic_movefore" value="${card.new_forecast||''}"></div>
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      </div>`:''}
+      ${canEditImpl()?`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <button class="btn btn-or btn-sm" onclick="implMoveCard('${id}')">Salvar Fase/Previsão</button>
         ${s!=='dn'?`<button class="btn btn-gh btn-sm" onclick="openModal('implPause','${id}')">+ Pausa</button>`:''}
         ${s!=='dn'?`<button class="btn btn-gn btn-sm" onclick="implConcluir('${id}')" style="background:var(--grnbg);color:var(--grn);border:1px solid var(--grn)25">✓ Concluir</button>`:''}
-        <button class="btn btn-rd btn-sm" onclick="implDelCard('${id}')">Excluir</button>
-      </div>
+        ${isAdmin()?`<button class="btn btn-rd btn-sm" onclick="implDelCard('${id}')">Excluir</button>`:''}
+      </div>`:'<div style="padding:6px 0 10px;font-size:10px;color:var(--tx4)">👁 Somente leitura</div>'}
 
       ${pauseList?`<div class="fl">Pausas</div><div class="impl-pause-list">${pauseList}</div><div class="dv"></div>`:''}
 
@@ -2274,6 +2334,207 @@ function rIndChart(email){
       </svg>
     </div>`;
   });
+
+  return html;
+}
+
+// ── RELATÓRIO DE IMPLANTAÇÕES ─────────────────────────────────────
+function rImplReport(){
+  const boards=CACHE.implBoards;
+  const cards=CACHE.implCards;
+  if(!cards.length)return`<div class="empty"><div class="ei">📊</div><div class="et">Nenhum dado de implantação ainda.</div></div>`;
+
+  // Métricas globais
+  const concluded=cards.filter(c=>c.status==='dn');
+  const active=cards.filter(c=>c.status!=='dn');
+  const delayed=active.filter(c=>implCardStatus(c)==='at');
+  const paused=active.filter(c=>implCardStatus(c)==='pa');
+  const avgDays=concluded.length?Math.round(concluded.reduce((a,c)=>a+implDays(c),0)/concluded.length):0;
+  const delayRate=active.length?Math.round((delayed.length/active.length)*100):0;
+
+  let html=`<div style="margin-bottom:16px;display:flex;align-items:center;gap:8px">
+    <button class="btn btn-gh btn-sm" onclick="nav('implant')">← Voltar</button>
+    <span style="font-size:11px;color:var(--tx3)">Dados de todos os boards</span>
+  </div>`;
+
+  // Cards de métricas
+  html+=`<div class="impl-report-grid">
+    <div class="impl-report-card">
+      <div class="impl-report-label">Total de clientes</div>
+      <div class="impl-report-value">${cards.length}</div>
+      <div class="impl-report-sub">${active.length} ativos · ${concluded.length} concluídos</div>
+    </div>
+    <div class="impl-report-card">
+      <div class="impl-report-label">Tempo médio</div>
+      <div class="impl-report-value" style="color:var(--or)">${avgDays}d</div>
+      <div class="impl-report-sub">nos ${concluded.length} concluídos</div>
+    </div>
+    <div class="impl-report-card">
+      <div class="impl-report-label">Taxa de atraso</div>
+      <div class="impl-report-value" style="color:${delayRate>30?'var(--red)':delayRate>10?'var(--or)':'var(--grn)'}">${delayRate}%</div>
+      <div class="impl-report-sub">${delayed.length} de ${active.length} ativos</div>
+    </div>
+    <div class="impl-report-card">
+      <div class="impl-report-label">Em pausa</div>
+      <div class="impl-report-value" style="color:#fbbf24">${paused.length}</div>
+      <div class="impl-report-sub">${paused.reduce((a,c)=>{const p=c.pauses||[];return a+p.reduce((b,x)=>b+(parseInt(x.dias)||0),0);},0)}d pausados no total</div>
+    </div>
+  </div>`;
+
+  // Por board
+  boards.forEach(b=>{
+    const bc=cards.filter(c=>c.board_id===b.id);
+    if(!bc.length)return;
+    const bConc=bc.filter(c=>c.status==='dn');
+    const bActive=bc.filter(c=>c.status!=='dn');
+    const bDelayed=bActive.filter(c=>implCardStatus(c)==='at');
+    html+=`<div style="font-size:12px;font-weight:800;color:var(--tx);margin:16px 0 8px;display:flex;align-items:center;gap:8px">
+      🏗️ ${esc(b.name)}
+      <span style="font-size:10px;font-weight:500;color:var(--tx3)">${bc.length} clientes</span>
+    </div>`;
+    html+=`<div class="impl-report-table"><table>
+      <thead><tr><th>Cliente</th><th>Fase</th><th>Status</th><th>Dias</th><th>Previsão</th><th>Pausas</th></tr></thead>
+      <tbody>
+      ${bc.map(c=>{
+        const s=implCardStatus(c);
+        const sCls={ok:'bx-gn',at:'bx-rd',pa:'bx-or',dn:'bx-bl'}[s]||'bx-gy';
+        const sLbl={ok:'Em dia',at:'Atrasado',pa:'Pausado',dn:'Concluído'}[s]||s;
+        const phase=b.phases?.[c.phase]||'—';
+        const pauseDias=(c.pauses||[]).reduce((a,p)=>a+(parseInt(p.dias)||0),0);
+        return`<tr>
+          <td style="font-weight:700;color:var(--tx)">${esc(c.client_name)}</td>
+          <td>${esc(phase)}</td>
+          <td><span class="bx ${sCls}">${sLbl}</span></td>
+          <td style="font-family:var(--fs);font-weight:800;color:var(--or)">${implDays(c)}d</td>
+          <td style="color:${s==='at'?'var(--red)':'inherit'}">${fd(c.new_forecast)}</td>
+          <td>${pauseDias?`<span style="color:#fbbf24;font-weight:700">${pauseDias}d</span>`:'—'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>`;
+  });
+
+  return html;
+}
+
+// ── DASHBOARD DE PERFORMANCE ──────────────────────────────────────
+function rPerfDash(){
+  const collabs=gU().filter(u=>u.email!==ADMIN);
+  const p=S.period;
+  const today_str=today();
+
+  let html=`<div style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
+    <span style="font-size:12px;color:var(--tx3)">Período:</span>
+    ${['semanal','mensal','trimestral'].map(x=>`<button class="ptab ${S.period===x?'on':''}" onclick="setPeriod('${x}')">${x.slice(0,3).toUpperCase()}</button>`).join('')}
+  </div>
+  <div class="perf-grid">`;
+
+  // ── Ranking de propostas aprovadas ──
+  const propRank=collabs.map(c=>{
+    const v=gP(c.email).filter(x=>inP(x.date,p)&&x.status==='aprovada').reduce((a,x)=>a+parseFloat(x.value||0),0);
+    return{name:(c.name||c.email).split(' ')[0],email:c.email,v};
+  }).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const maxProp=propRank[0]?.v||1;
+
+  html+=`<div class="perf-card">
+    <div class="perf-card-title">💰 Receita aprovada</div>
+    ${propRank.length?propRank.slice(0,5).map((x,i)=>`<div class="perf-row">
+      <span class="perf-rank">${i+1}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+        ${uavHtml(x.email,20)}
+        <span style="font-size:11px;font-weight:600;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</span>
+      </div>
+      <div class="perf-bar-bg" style="width:80px"><div class="perf-bar" style="width:${Math.round((x.v/maxProp)*100)}%;background:var(--grn)"></div></div>
+      <span class="perf-val" style="color:var(--grn)">${x.v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}</span>
+    </div>`).join(''):'<div style="color:var(--tx4);font-size:11px;padding:8px 0">Sem dados no período</div>'}
+  </div>`;
+
+  // ── Ranking de metas atingidas ──
+  const metaRank=collabs.map(c=>{
+    const weeks=getLast10Weeks();
+    const inds=gI(c.email);
+    let total=0,hit=0;
+    inds.forEach(ind=>weeks.forEach(w=>{
+      const e=(ind.entries||[]).find(x=>x.week===weekKey(w));
+      if(e){total++;if(iOk({...ind,value:e.value}))hit++;}
+    }));
+    return{name:(c.name||c.email).split(' ')[0],email:c.email,pct:total>0?Math.round((hit/total)*100):null,total};
+  }).filter(x=>x.pct!==null).sort((a,b)=>b.pct-a.pct);
+
+  html+=`<div class="perf-card">
+    <div class="perf-card-title">📊 Indicadores atingidos</div>
+    ${metaRank.length?metaRank.slice(0,5).map((x,i)=>`<div class="perf-row">
+      <span class="perf-rank">${i+1}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+        ${uavHtml(x.email,20)}
+        <span style="font-size:11px;font-weight:600;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</span>
+      </div>
+      <div class="perf-bar-bg" style="width:80px"><div class="perf-bar" style="width:${x.pct}%;background:${x.pct>=80?'var(--grn)':x.pct>=50?'var(--or)':'var(--red)'}"></div></div>
+      <span class="perf-val" style="color:${x.pct>=80?'var(--grn)':x.pct>=50?'var(--or)':'var(--red)'}">${x.pct}%</span>
+    </div>`).join(''):'<div style="color:var(--tx4);font-size:11px;padding:8px 0">Sem dados</div>'}
+  </div>`;
+
+  // ── Tarefas: concluídas vs pendentes ──
+  const taskRank=collabs.map(c=>{
+    const all=gT(c.email);
+    const done=all.filter(t=>t.done).length;
+    const ov=all.filter(t=>!t.done&&tst(t.due)==='ov').length;
+    return{name:(c.name||c.email).split(' ')[0],email:c.email,done,ov,total:all.length};
+  }).filter(x=>x.total>0).sort((a,b)=>b.done-a.done);
+
+  html+=`<div class="perf-card">
+    <div class="perf-card-title">✅ Tarefas concluídas</div>
+    ${taskRank.length?taskRank.slice(0,5).map((x,i)=>`<div class="perf-row">
+      <span class="perf-rank">${i+1}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+        ${uavHtml(x.email,20)}
+        <span style="font-size:11px;font-weight:600;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</span>
+        ${x.ov?`<span class="bx bx-rd" style="font-size:9px">${x.ov} venc.</span>`:''}
+      </div>
+      <span class="perf-val">${x.done}<span style="color:var(--tx4);font-weight:400">/${x.total}</span></span>
+    </div>`).join(''):'<div style="color:var(--tx4);font-size:11px;padding:8px 0">Sem dados</div>'}
+  </div>`;
+
+  // ── Implantações: clientes por analista (quem mais atualizou feeds) ──
+  const implFeeds=CACHE.implFeed;
+  const implRank=collabs.map(c=>{
+    const count=implFeeds.filter(f=>f.user_email===c.email).length;
+    return{name:(c.name||c.email).split(' ')[0],email:c.email,count};
+  }).filter(x=>x.count>0).sort((a,b)=>b.count-a.count);
+  const maxFeed=implRank[0]?.count||1;
+
+  html+=`<div class="perf-card">
+    <div class="perf-card-title">🏗️ Atualizações em Implantações</div>
+    ${implRank.length?implRank.slice(0,5).map((x,i)=>`<div class="perf-row">
+      <span class="perf-rank">${i+1}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">
+        ${uavHtml(x.email,20)}
+        <span style="font-size:11px;font-weight:600;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</span>
+      </div>
+      <div class="perf-bar-bg" style="width:80px"><div class="perf-bar" style="width:${Math.round((x.count/maxFeed)*100)}%;background:var(--blu)"></div></div>
+      <span class="perf-val" style="color:var(--blu)">${x.count}</span>
+    </div>`).join(''):'<div style="color:var(--tx4);font-size:11px;padding:8px 0">Sem atualizações</div>'}
+  </div>`;
+
+  html+=`</div>`;
+
+  // ── Implantações em risco ──
+  const atRisk=CACHE.implCards.filter(c=>implCardStatus(c)==='at');
+  if(atRisk.length){
+    html+=`<div style="font-size:11px;font-weight:700;color:var(--red);margin:16px 0 8px">⚠️ Implantações atrasadas (${atRisk.length})</div>
+    <div class="impl-report-table"><table>
+      <thead><tr><th>Cliente</th><th>Board</th><th>Dias</th><th>Previsão</th></tr></thead>
+      <tbody>${atRisk.map(c=>{
+        const b=CACHE.implBoards.find(x=>x.id===c.board_id);
+        return`<tr>
+          <td style="font-weight:700;color:var(--tx)">${esc(c.client_name)}</td>
+          <td style="color:var(--tx3)">${esc(b?.name||'—')}</td>
+          <td style="font-family:var(--fs);font-weight:800;color:var(--or)">${implDays(c)}d</td>
+          <td style="color:var(--red)">${fd(c.new_forecast)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
 
   return html;
 }
