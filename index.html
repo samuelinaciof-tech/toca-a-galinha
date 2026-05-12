@@ -533,6 +533,32 @@ input[type=checkbox]{accent-color:var(--or);cursor:pointer;width:13px;height:13p
 }
 .dash-mode .dash-btn-exit{display:block}
 .dash-btn-exit:hover{border-color:var(--red)80;color:var(--red);transform:scale(1.04)}
+
+/* ── CLIENTES ── */
+.cli-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:14px}
+.cli-card{background:var(--bg2);border:1px solid var(--ln2);border-radius:var(--r2);padding:14px 16px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.cli-card:hover{border-color:var(--ln4)}
+.cli-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.cli-card.st-ativo::before{background:var(--grn)}
+.cli-card.st-implantacao::before{background:var(--blu)}
+.cli-card.st-churn::before{background:var(--red)}
+.cli-card.st-pausado::before{background:var(--or)}
+.cli-name{font-size:13px;font-weight:700;color:var(--tx);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-razao{font-size:10px;color:var(--tx3);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;font-size:11px}
+.cli-lbl{color:var(--tx3);font-weight:600}
+.cli-val{color:var(--tx2);font-weight:600}
+.cli-obs{font-size:11px;color:var(--tx3);margin-top:8px;padding-top:8px;border-top:1px solid var(--ln);line-height:1.5;font-style:italic}
+.cli-actions{display:flex;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid var(--ln)}
+.cli-stat-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:16px}
+.cli-search-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.cli-filter-pills{display:flex;gap:5px;flex-wrap:wrap}
+.cli-pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--ln3);color:var(--tx3);background:transparent;font-family:var(--fj);transition:all .12s}
+.cli-pill.on{background:var(--or);color:#0a0b0e;border-color:transparent}
+.cli-detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px}
+.cli-detail-name{font-family:var(--fs);font-size:18px;font-weight:800;color:var(--tx);line-height:1.2}
+.cli-detail-razao{font-size:12px;color:var(--tx3);margin-top:3px}
+.cli-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px}
 </style>
 </head>
 <body>
@@ -597,8 +623,8 @@ function showSaveError(table,msg){
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────
 const ADMIN='samuel.inacio@hubfloripa.com.br';
-let S={view:'login',user:null,page:'dashboard',collabEmail:null,collabTab:'meetings',period:'mensal',modal:null,ovFilter:'indicators',ovSearch:'',curtainOpen:false,activeMeeting:null,newsTab:'feed',mandouTab:'all',goalsTab:'ativas',implBoard:0,implPaused:false,indView:'grid',teamOpen:true};
-let CACHE={users:[],indicators:[],meetings:[],proposals:[],tasks:[],news:[],mandou:[],goals:[],implBoards:[],implCards:[],implFeed:[]};
+let S={view:'login',user:null,page:'dashboard',collabEmail:null,collabTab:'meetings',period:'mensal',modal:null,ovFilter:'indicators',ovSearch:'',curtainOpen:false,activeMeeting:null,newsTab:'feed',mandouTab:'all',goalsTab:'ativas',implBoard:0,implPaused:false,indView:'grid',teamOpen:true,clienteId:null,cliFilter:'todos',cliSearch:''};
+let CACHE={users:[],indicators:[],meetings:[],proposals:[],tasks:[],news:[],mandou:[],goals:[],implBoards:[],implCards:[],implFeed:[],companies:[],clients:[]};
 // Inline edit state
 let editingCell=null; // {indId, weekDate}
 // Timer state
@@ -615,7 +641,7 @@ async function safeSb(table,query=''){
 
 async function loadAll(){
   console.log('loadAll iniciando...');
-  const [users,indicators,meetings,proposals,tasks,news,mandou,goals,implBoards,implCards,implFeed]=await Promise.all([
+  const [users,indicators,meetings,proposals,tasks,news,mandou,goals,implBoards,implCards,implFeed,companies,clients]=await Promise.all([
     safeSb('users','?select=*'),
     safeSb('indicators','?select=*'),
     safeSb('meetings','?select=*&order=created_at.desc'),
@@ -627,6 +653,8 @@ async function loadAll(){
     safeSb('implant_boards','?select=*&order=created_at.asc'),
     safeSb('implant_cards','?select=*&order=created_at.asc'),
     safeSb('implant_feed','?select=*&order=created_at.asc'),
+    safeSb('companies','?select=*&order=name.asc'),
+    safeSb('clients','?select=*&order=name.asc'),
   ]);
   CACHE.users=users;
   CACHE.indicators=indicators.map(i=>({...i,type:i.type||'num',condition:i.condition||'gte',entries:i.entries||[]}));
@@ -639,6 +667,8 @@ async function loadAll(){
   CACHE.implBoards=implBoards.map(b=>({...b,phases:b.phases||[]}));
   CACHE.implCards=implCards.map(c=>({...c,pauses:c.pauses||[]}));
   CACHE.implFeed=implFeed;
+  CACHE.companies=companies;
+  CACHE.clients=clients;
   console.log('loadAll OK — users:'+CACHE.users.length+' tasks:'+CACHE.tasks.length+' indicators:'+CACHE.indicators.length+' meetings:'+CACHE.meetings.length);
 }
 
@@ -706,6 +736,26 @@ function getLast10Weeks(){
   const weeks=[];const mon=getMondayDate();
   for(let i=9;i>=0;i--){const w=new Date(mon);w.setDate(mon.getDate()-i*7);weeks.push(w);}
   return weeks;
+}
+// Weeks for a specific indicator: from start_week (or 10 weeks ago), up to current week, max 10
+function getWeeksForInd(ind){
+  const mon=getMondayDate();
+  if(!ind.start_week){
+    const weeks=[];
+    for(let i=9;i>=0;i--){const w=new Date(mon);w.setDate(mon.getDate()-i*7);weeks.push(w);}
+    return weeks;
+  }
+  // Parse start_week (YYYY-MM-DD of a monday)
+  const start=new Date(ind.start_week+'T00:00:00');
+  const weeks=[];
+  let cur=new Date(start);
+  while(cur<=mon&&weeks.length<10){weeks.push(new Date(cur));cur.setDate(cur.getDate()+7);}
+  return weeks;
+}
+// Is a given week the current (not yet finished) week?
+function isCurrentWeek(weekDate){
+  const mon=getMondayDate();
+  return weekKey(weekDate)===weekKey(mon);
 }
 function weekKey(d){const m=d instanceof Date?d:new Date(d);return m.toISOString().split('T')[0];}
 
@@ -900,7 +950,7 @@ function rShell(){
       navCollab+=`</div>`;
     }
   }
-  const ptitle=S.page==='dashboard'?'Minha Área':S.page==='overview'?'Visão Geral':S.page==='admin'?'Colaboradores':S.page==='mandou'?'Mandou Bem 🌟':S.page==='implant'?'🏗️ Implantações':S.page==='implReport'?'📊 Relatório de Implantações':S.page==='perfDash'?'⚡ Dashboard de Performance':S.page==='collab'?(gU().find(x=>x.email===S.collabEmail)?.name||'Colaborador'):'';
+  const ptitle=S.page==='dashboard'?'Minha Área':S.page==='overview'?'Visão Geral':S.page==='admin'?'Colaboradores':S.page==='mandou'?'Mandou Bem 🌟':S.page==='clientes'?'🏢 Clientes':S.page==='clienteDetalhe'?'🏢 Cliente':S.page==='implant'?'🏗️ Implantações':S.page==='implReport'?'📊 Relatório de Implantações':S.page==='perfDash'?'⚡ Dashboard de Performance':S.page==='collab'?(gU().find(x=>x.email===S.collabEmail)?.name||'Colaborador'):'';
   const topSub=S.page==='collab'?`<span class="tb-sep">/</span><span class="tb-sub">${esc(gU().find(x=>x.email===S.collabEmail)?.name||'')}</span>`:'';
   return`<div class="shell" style="margin-right:${S.curtainOpen?'380px':'0'};transition:margin .3s">
   <nav class="sb">
@@ -925,6 +975,7 @@ function rShell(){
       <div class="sb-item ${S.collabTab==='tasks'?'on':''}" onclick="setTab('tasks')"><span class="sb-ico">✅</span>Tarefas${myOv?`<span class="sb-bv">${myOv}</span>`:(myTd?`<span class="sb-bv w">${myTd}</span>`:'')}</div>`:''}
       <div class="sb-sec">Ferramentas</div>
       <div class="sb-mandou ${S.page==='mandou'?'on':''}" onclick="nav('mandou')"><span style="font-size:14px">🌟</span>Mandou Bem</div>
+      <div class="sb-item ${S.page==='clientes'?'on':''}" onclick="nav('clientes')"><span class="sb-ico">🏢</span>Clientes</div>
       <div class="sb-item ${S.page==='implant'?'on':''}" onclick="nav('implant')"><span class="sb-ico">🏗️</span>Implantações</div>
       ${isAdmin()?`<div class="sb-item ${S.page==='implReport'?'on':''}" onclick="nav('implReport')"><span class="sb-ico">📊</span>Relatório</div>
       <div class="sb-item ${S.page==='perfDash'?'on':''}" onclick="nav('perfDash')"><span class="sb-ico">⚡</span>Performance</div>`:''}
@@ -955,6 +1006,8 @@ function rPage(){
   if(S.page==='implant')return rImplant();
   if(S.page==='implReport')return rImplReport();
   if(S.page==='perfDash')return rPerfDash();
+  if(S.page==='clientes')return rClientes();
+  if(S.page==='clienteDetalhe')return rClienteDetalhe(S.clienteId);
   if(S.page==='collab')return rFull(S.collabEmail,true);
   if(!isAdmin())return rFull(S.user.email,true);
   return'';
@@ -1456,6 +1509,9 @@ function rModal(){
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveNews()">Publicar</button></div>`;
   }
 
+  if(type==='newCliente') return rModalNewCliente();
+  if(type==='editCliente') return rModalEditCliente(id);
+
   if(type==='newMandou'){
     // Se vier com email pré-selecionado (ex: do avatar do colaborador)
     const preEmail=id&&id.includes('@')?id:'';
@@ -1700,14 +1756,14 @@ window.saveProfile=async()=>{
 };
 
 // Delete ops
-window.delInd=async(e,id)=>{await sb('indicators','DELETE',null,`?id=eq.${id}`);CACHE.indicators=CACHE.indicators.filter(i=>i.id!==id);render();};
-window.delMtg=async(id)=>{await sb('meetings','DELETE',null,`?id=eq.${id}`);CACHE.meetings=CACHE.meetings.filter(x=>x.id!==id);if(S.activeMeeting===id){S.activeMeeting=null;S.curtainOpen=false;}render();};
-window.delProp=async(e,id)=>{await sb('proposals','DELETE',null,`?id=eq.${id}`);CACHE.proposals=CACHE.proposals.filter(p=>p.id!==id);render();};
-window.delTask=async(e,id)=>{await sb('tasks','DELETE',null,`?id=eq.${id}`);CACHE.tasks=CACHE.tasks.filter(t=>t.id!==id);render();};
+window.delInd=async(e,id)=>{const ind=CACHE.indicators.find(i=>i.id===id);if(!confirm(`Excluir o indicador "${ind?.name||''}"? Esta ação não pode ser desfeita.`))return;await sb('indicators','DELETE',null,`?id=eq.${id}`);CACHE.indicators=CACHE.indicators.filter(i=>i.id!==id);render();};
+window.delMtg=async(id)=>{const m=CACHE.meetings.find(x=>x.id===id);if(!confirm(`Excluir a reunião "${m?.title||''}"? Esta ação não pode ser desfeita.`))return;await sb('meetings','DELETE',null,`?id=eq.${id}`);CACHE.meetings=CACHE.meetings.filter(x=>x.id!==id);if(S.activeMeeting===id){S.activeMeeting=null;S.curtainOpen=false;}render();};
+window.delProp=async(e,id)=>{const p=CACHE.proposals.find(x=>x.id===id);if(!confirm(`Excluir a proposta "${p?.client||''}"? Esta ação não pode ser desfeita.`))return;await sb('proposals','DELETE',null,`?id=eq.${id}`);CACHE.proposals=CACHE.proposals.filter(p=>p.id!==id);render();};
+window.delTask=async(e,id)=>{const t=CACHE.tasks.find(x=>x.id===id);if(!confirm(`Excluir a tarefa "${t?.title||''}"? Esta ação não pode ser desfeita.`))return;await sb('tasks','DELETE',null,`?id=eq.${id}`);CACHE.tasks=CACHE.tasks.filter(t=>t.id!==id);render();};
 window.toggleTask=async(e,id)=>{const t=CACHE.tasks.find(x=>x.id===id);if(!t)return;const done=!t.done;await sb('tasks','PATCH',{done},`?id=eq.${id}`);CACHE.tasks=CACHE.tasks.map(x=>x.id===id?{...x,done}:x);render();};
 window.delUser=async(email)=>{if(!confirm('Excluir colaborador?'))return;await sb('users','DELETE',null,`?email=eq.${email}`);CACHE.users=CACHE.users.filter(u=>u.email!==email);render();};
 window.markRead=async(id)=>{const me=S.user.email,n=CACHE.news.find(x=>x.id===id);if(!n)return;const rb=[...(n.read_by||[])];if(!rb.includes(me))rb.push(me);await sb('news','PATCH',{read_by:rb},`?id=eq.${id}`);const idx=CACHE.news.findIndex(x=>x.id===id);if(idx>=0)CACHE.news[idx]={...CACHE.news[idx],read_by:rb};render();};
-window.deleteNews=async(id)=>{await sb('news','DELETE',null,`?id=eq.${id}`);CACHE.news=CACHE.news.filter(x=>x.id!==id);render();};
+window.deleteNews=async(id)=>{if(!confirm('Excluir esta notícia? Esta ação não pode ser desfeita.'))return;await sb('news','DELETE',null,`?id=eq.${id}`);CACHE.news=CACHE.news.filter(x=>x.id!==id);render();};
 window.dispararToca=async()=>{const motivo=gv('m_toca_motivo');if(!motivo){alert('Digite o motivo!');return;}const me=S.user;const entry={id:uid(),from_email:me.email,from_name:me.name||me.email,title:`🎉 ${me.name||me.email} tocou a galinha!`,body:motivo,type:'celebration',recipients:['all'],target_label:'Todos',read_by:[],created_at:new Date().toISOString()};await sb('news','POST',entry);CACHE.news.unshift(entry);tocaModalOpen=false;showChickenFull(motivo);render();};
 
 // ── GOALS PAGE ─────────────────────────────────────────────────────────
@@ -2254,7 +2310,8 @@ window.implComment=async(cardId)=>{
 
 // Excluir card
 window.implDelCard=async(cardId)=>{
-  if(!confirm('Excluir este cliente?'))return;
+  const card=CACHE.implCards.find(c=>c.id===cardId);
+  if(!confirm(`Excluir o cliente "${card?.client_name||''}" da implantação? Esta ação não pode ser desfeita.`))return;
   await sb('implant_cards','DELETE',null,`?id=eq.${cardId}`);
   await sb('implant_feed','DELETE',null,`?card_id=eq.${cardId}`);
   CACHE.implCards=CACHE.implCards.filter(c=>c.id!==cardId);
@@ -2630,6 +2687,253 @@ function updateDashTopbar(){
   const dots=document.getElementById('dashDots');
   if(dots)dots.innerHTML=boards.map((b,i)=>`<button class="impl-dot${i===bi?' on':''}" onclick="implGoTo(${i})" title="${esc(b.name)}"></button>`).join('');
 }
+
+
+// ── CLIENTES ───────────────────────────────────────────────────────────
+
+function statusCliLabel(s){
+  if(s==='ativo')return'<span class="bx bx-gn">Ativo</span>';
+  if(s==='implantacao')return'<span class="bx bx-bl">Em Implantação</span>';
+  if(s==='churn')return'<span class="bx bx-rd">Churn</span>';
+  if(s==='pausado')return'<span class="bx bx-or">Pausado</span>';
+  return'<span class="bx bx-gy">—</span>';
+}
+
+function cliColor(s){
+  if(s==='ativo')return'var(--grn)';
+  if(s==='implantacao')return'var(--blu)';
+  if(s==='churn')return'var(--red)';
+  if(s==='pausado')return'var(--or)';
+  return'var(--tx4)';
+}
+
+function getVisibleClients(){
+  let cls = CACHE.clients;
+  if(!isAdmin()){
+    const userCompany = S.user?.company;
+    const comp = CACHE.companies.find(c=>c.name===userCompany||c.id===userCompany);
+    if(comp) cls = cls.filter(c=>c.company_id===comp.id);
+    else cls = [];
+  }
+  return cls;
+}
+
+function rClientes(){
+  const allCli = getVisibleClients();
+  const total = allCli.length;
+  const ativos = allCli.filter(c=>c.status==='ativo'||c.status==='implantacao').length;
+  const churn = allCli.filter(c=>c.status==='churn').length;
+  const emImpl = allCli.filter(c=>c.status==='implantacao').length;
+  const pausados = allCli.filter(c=>c.status==='pausado').length;
+
+  // Taxa de churn
+  const concluidos = allCli.filter(c=>c.status==='ativo'||c.status==='churn').length;
+  const taxaChurn = concluidos>0?Math.round((churn/concluidos)*100):0;
+
+  // Tempo médio de implantação (clientes com início e fim)
+  const duracoes = allCli.filter(c=>c.start_date&&c.end_date&&c.status==='ativo').map(c=>{
+    const d1=new Date(c.start_date),d2=new Date(c.end_date);
+    return Math.max(0,Math.round((d2-d1)/(1000*60*60*24)));
+  }).filter(d=>d>0);
+  const tmedio = duracoes.length?Math.round(duracoes.reduce((a,b)=>a+b,0)/duracoes.length):null;
+
+  // Implantações em risco (>150 dias sem fim)
+  const hoje = new Date();
+  const emRisco = allCli.filter(c=>c.status==='implantacao'&&c.start_date).filter(c=>{
+    const dias = Math.round((hoje-new Date(c.start_date))/(1000*60*60*24));
+    return dias>150;
+  }).length;
+
+  // Filtro + busca
+  let filtered = allCli;
+  if(S.cliFilter&&S.cliFilter!=='todos') filtered=filtered.filter(c=>c.status===S.cliFilter);
+  if(S.cliSearch) filtered=filtered.filter(c=>(c.name||'').toLowerCase().includes(S.cliSearch.toLowerCase())||(c.razao_social||'').toLowerCase().includes(S.cliSearch.toLowerCase()));
+  filtered.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+
+  const filters=[
+    {key:'todos',label:`Todos (${total})`},
+    {key:'ativo',label:`Ativos (${allCli.filter(c=>c.status==='ativo').length})`},
+    {key:'implantacao',label:`Em Impl. (${emImpl})`},
+    {key:'churn',label:`Churn (${churn})`},
+    {key:'pausado',label:`Pausados (${pausados})`},
+  ];
+
+  let html=``;
+
+  // Stats bar
+  html+=`<div class="cli-stat-bar">
+    <div class="sc or"><div class="sc-l">Total clientes</div><div class="sc-v">${total}</div></div>
+    <div class="sc gn"><div class="sc-l">Ativos</div><div class="sc-v">${ativos}</div><div class="sc-s">${allCli.filter(c=>c.status==='ativo').length} impl. + ${emImpl} em andamento</div></div>
+    <div class="sc rd"><div class="sc-l">Taxa de churn</div><div class="sc-v">${taxaChurn}%</div><div class="sc-s">${churn} clientes perdidos</div></div>
+    ${tmedio?`<div class="sc bl"><div class="sc-l">Tempo médio impl.</div><div class="sc-v">${tmedio}d</div><div class="sc-s">clientes ativos</div></div>`:`<div class="sc gy"><div class="sc-l">Tempo médio impl.</div><div class="sc-v">—</div></div>`}
+    ${emRisco?`<div class="sc rd"><div class="sc-l">Em risco (&gt;150d)</div><div class="sc-v">${emRisco}</div><div class="sc-s">sem conclusão</div></div>`:''}
+  </div>`;
+
+  // Toolbar
+  html+=`<div class="cli-search-row">
+    <input class="fi" style="max-width:240px;padding:6px 10px;font-size:12px" placeholder="Buscar cliente..." value="${esc(S.cliSearch||'')}" oninput="S.cliSearch=this.value;render()">
+    <div class="cli-filter-pills">${filters.map(f=>`<button class="cli-pill ${S.cliFilter===f.key?'on':''}" onclick="S.cliFilter='${f.key}';render()">${f.label}</button>`).join('')}</div>
+    ${isAdmin()?`<button class="btn btn-or" style="margin-left:auto" onclick="openModal('newCliente','')">+ Novo cliente</button>`:''}
+  </div>`;
+
+  if(!filtered.length){
+    html+=`<div class="empty"><div class="ei">🏢</div><div class="et">Nenhum cliente encontrado</div></div>`;
+    return html;
+  }
+
+  // Cards grid
+  html+=`<div class="cli-grid">`;
+  filtered.forEach(c=>{
+    const comp = CACHE.companies.find(x=>x.id===c.company_id);
+    const hoje2 = new Date();
+    let diasStr='';
+    if(c.status==='implantacao'&&c.start_date){
+      const dias=Math.round((hoje2-new Date(c.start_date))/(1000*60*60*24));
+      diasStr=`<div class="cli-row"><span class="cli-lbl">Em andamento</span><span class="cli-val" style="color:${dias>150?'var(--red)':'var(--tx2)'}">${dias} dias</span></div>`;
+    }
+    let duracaoStr='';
+    if(c.start_date&&c.end_date){
+      const dias=Math.round((new Date(c.end_date)-new Date(c.start_date))/(1000*60*60*24));
+      duracaoStr=`<div class="cli-row"><span class="cli-lbl">Duração impl.</span><span class="cli-val">${dias} dias</span></div>`;
+    }
+    html+=`<div class="cli-card st-${c.status||'ativo'}" onclick="viewCliente('${c.id}')">
+      <div class="cli-name">${esc(c.name)}</div>
+      ${c.razao_social?`<div class="cli-razao">${esc(c.razao_social)}</div>`:'<div class="cli-razao" style="opacity:0">—</div>'}
+      <div class="cli-row">
+        <span>${statusCliLabel(c.status)}</span>
+        ${comp?`<span class="bx bx-gy" style="font-size:9px">${esc(comp.name)}</span>`:''}
+      </div>
+      <div class="cli-row"><span class="cli-lbl">Início</span><span class="cli-val">${fd(c.start_date)}</span></div>
+      ${c.end_date?`<div class="cli-row"><span class="cli-lbl">Fim implantação</span><span class="cli-val">${fd(c.end_date)}</span></div>`:''}
+      ${diasStr}${duracaoStr}
+      ${c.observacoes?`<div class="cli-obs">${esc(c.observacoes.slice(0,80))}${c.observacoes.length>80?'…':''}</div>`:''}
+    </div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function rClienteDetalhe(id){
+  const c = CACHE.clients.find(x=>x.id===id);
+  if(!c) return`<div class="empty"><div class="et">Cliente não encontrado</div></div>`;
+  const comp = CACHE.companies.find(x=>x.id===c.company_id);
+  const hoje = new Date();
+  let diasAndamento=null,duracaoImpl=null;
+  if(c.status==='implantacao'&&c.start_date) diasAndamento=Math.round((hoje-new Date(c.start_date))/(1000*60*60*24));
+  if(c.start_date&&c.end_date) duracaoImpl=Math.round((new Date(c.end_date)-new Date(c.start_date))/(1000*60*60*24));
+
+  return`<div>
+    <button class="btn btn-gh btn-sm" onclick="nav('clientes')" style="margin-bottom:14px">← Voltar</button>
+    <div class="cli-detail-header">
+      <div>
+        <div class="cli-detail-name">${esc(c.name)}</div>
+        ${c.razao_social?`<div class="cli-detail-razao">${esc(c.razao_social)}</div>`:''}
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${statusCliLabel(c.status)}
+        ${isAdmin()?`<button class="btn btn-gh btn-sm" onclick="openModal('editCliente','${c.id}')">✏️ Editar</button>`:''}
+        ${isAdmin()?`<button class="btn btn-rd btn-sm" onclick="deleteCliente('${c.id}')">✕</button>`:''}
+      </div>
+    </div>
+
+    <div class="cli-metrics">
+      <div class="sc or"><div class="sc-l">Empresa</div><div class="sc-v" style="font-size:14px">${esc(comp?.name||'—')}</div></div>
+      <div class="sc bl"><div class="sc-l">Início</div><div class="sc-v" style="font-size:14px">${fd(c.start_date)}</div></div>
+      <div class="sc ${c.end_date?'gn':'gy'}"><div class="sc-l">Fim implantação</div><div class="sc-v" style="font-size:14px">${fd(c.end_date)}</div></div>
+      ${duracaoImpl!==null?`<div class="sc bl"><div class="sc-l">Duração</div><div class="sc-v">${duracaoImpl}d</div></div>`:''}
+      ${diasAndamento!==null?`<div class="sc ${diasAndamento>150?'rd':'or'}"><div class="sc-l">Em andamento</div><div class="sc-v">${diasAndamento}d</div><div class="sc-s">${diasAndamento>150?'⚠️ Em risco':''}</div></div>`:''}
+    </div>
+
+    ${c.observacoes?`<div class="card"><div class="card-h"><div class="card-t">Observações</div></div><div style="padding:12px 14px;font-size:12px;color:var(--tx2);line-height:1.7">${esc(c.observacoes)}</div></div>`:''}
+  </div>`;
+}
+
+window.viewCliente=id=>{S.page='clienteDetalhe';S.clienteId=id;render();};
+
+// ── MODAIS CLIENTES ────────────────────────────────────────────────────
+
+function rModalNewCliente(){
+  const companies = CACHE.companies;
+  return`<div class="mbg" onclick="if(event.target===this)closeModal()">
+  <div class="modal"><div class="mh"><div class="mt">Novo Cliente</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb">
+    <div class="fg"><label class="fl">Nome fantasia *</label><input class="fi" id="cliName" placeholder="Ex: Lunelli"></div>
+    <div class="fg"><label class="fl">Razão social</label><input class="fi" id="cliRazao" placeholder="Ex: Lunelli Têxtil Ltda"></div>
+    <div class="fr fr2">
+      <div class="fg"><label class="fl">Empresa *</label><select class="fs" id="cliCompany">
+        <option value="">Selecione...</option>
+        ${companies.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+      </select></div>
+      <div class="fg"><label class="fl">Status *</label><select class="fs" id="cliStatus">
+        <option value="ativo">Ativo</option>
+        <option value="implantacao">Em Implantação</option>
+        <option value="churn">Churn</option>
+        <option value="pausado">Pausado</option>
+      </select></div>
+    </div>
+    <div class="fr fr2">
+      <div class="fg"><label class="fl">Data início</label><input class="fi" type="date" id="cliStart"></div>
+      <div class="fg"><label class="fl">Fim implantação</label><input class="fi" type="date" id="cliEnd"></div>
+    </div>
+    <div class="fg"><label class="fl">Observações</label><textarea class="ft" id="cliObs" placeholder="Anotações livres sobre o cliente..."></textarea></div>
+  </div>
+  <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveNewCliente()">Salvar</button></div>
+  </div></div>`;
+}
+
+function rModalEditCliente(id){
+  const c = CACHE.clients.find(x=>x.id===id);
+  if(!c) return'';
+  const companies = CACHE.companies;
+  return`<div class="mbg" onclick="if(event.target===this)closeModal()">
+  <div class="modal"><div class="mh"><div class="mt">Editar Cliente</div><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mb">
+    <div class="fg"><label class="fl">Nome fantasia *</label><input class="fi" id="cliName" value="${esc(c.name)}" placeholder="Ex: Lunelli"></div>
+    <div class="fg"><label class="fl">Razão social</label><input class="fi" id="cliRazao" value="${esc(c.razao_social||'')}" placeholder="Ex: Lunelli Têxtil Ltda"></div>
+    <div class="fr fr2">
+      <div class="fg"><label class="fl">Empresa *</label><select class="fs" id="cliCompany">
+        <option value="">Selecione...</option>
+        ${companies.map(x=>`<option value="${x.id}" ${x.id===c.company_id?'selected':''}>${esc(x.name)}</option>`).join('')}
+      </select></div>
+      <div class="fg"><label class="fl">Status *</label><select class="fs" id="cliStatus">
+        ${['ativo','implantacao','churn','pausado'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s==='ativo'?'Ativo':s==='implantacao'?'Em Implantação':s==='churn'?'Churn':'Pausado'}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="fr fr2">
+      <div class="fg"><label class="fl">Data início</label><input class="fi" type="date" id="cliStart" value="${c.start_date||''}"></div>
+      <div class="fg"><label class="fl">Fim implantação</label><input class="fi" type="date" id="cliEnd" value="${c.end_date||''}"></div>
+    </div>
+    <div class="fg"><label class="fl">Observações</label><textarea class="ft" id="cliObs" placeholder="Anotações livres...">${esc(c.observacoes||'')}</textarea></div>
+  </div>
+  <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveEditCliente('${id}')">Salvar</button></div>
+  </div></div>`;
+}
+
+window.saveNewCliente=async function(){
+  const name=gv('cliName'),razao=gv('cliRazao'),company_id=gv('cliCompany'),status=gv('cliStatus'),start_date=gv('cliStart')||null,end_date=gv('cliEnd')||null,observacoes=gv('cliObs');
+  if(!name){alert('Informe o nome fantasia.');return;}
+  if(!company_id){alert('Selecione a empresa.');return;}
+  const row={id:uid(),name,razao_social:razao||null,company_id,status,start_date,end_date,observacoes:observacoes||null};
+  const r=await sb('clients','POST',row);
+  if(r){CACHE.clients=[...CACHE.clients,...(Array.isArray(r)?r:[r])];S.modal=null;render();}
+};
+
+window.saveEditCliente=async function(id){
+  const name=gv('cliName'),razao=gv('cliRazao'),company_id=gv('cliCompany'),status=gv('cliStatus'),start_date=gv('cliStart')||null,end_date=gv('cliEnd')||null,observacoes=gv('cliObs');
+  if(!name){alert('Informe o nome fantasia.');return;}
+  if(!company_id){alert('Selecione a empresa.');return;}
+  const upd={name,razao_social:razao||null,company_id,status,start_date,end_date,observacoes:observacoes||null};
+  const r=await sb('clients','PATCH',upd,`?id=eq.${id}`);
+  if(r!==null){CACHE.clients=CACHE.clients.map(c=>c.id===id?{...c,...upd}:c);S.modal=null;if(S.page==='clienteDetalhe')render();else render();}
+};
+
+window.deleteCliente=async function(id){
+  const c=CACHE.clients.find(x=>x.id===id);
+  if(!confirm(`Excluir "${c?.name}"? Esta ação não pode ser desfeita.`))return;
+  const r=await sb('clients','DELETE',null,`?id=eq.${id}`);
+  if(r){CACHE.clients=CACHE.clients.filter(x=>x.id!==id);nav('clientes');}
+};
+
 
 // ── INIT ───────────────────────────────────────────────────────────────
 (async()=>{
