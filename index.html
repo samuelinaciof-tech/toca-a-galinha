@@ -1056,29 +1056,35 @@ function rFull(email,canEdit,noCrumbs=false){
 // ── INDICATOR GRID ─────────────────────────────────────────────────────
 function rIndGrid(email,canEdit){
   const inds=gI(email);
-  const weeks=getLast10Weeks();
   let html=`<div class="ph"><div></div><div style="display:flex;gap:6px">${canEdit?`<button class="btn btn-gh" onclick="toggleIndView()">📊 Gráfico</button>`:''} ${canEdit?`<button class="btn btn-or" onclick="openModal('newInd','${email}')">+ Indicador</button>`:''}</div></div>`;
   if(S.indView==='chart')return html+rIndChart(email);
   if(!inds.length)return html+`<div class="empty"><div class="ei">📊</div><div class="et">Nenhum indicador cadastrado</div></div>`;
-  html+=`<div class="ind-grid-wrap"><table class="ind-grid"><thead><tr>
-    <th class="name-col">Indicador</th>
-    ${weeks.map(w=>`<th>${weekLabel(w)}</th>`).join('')}
-  </tr></thead><tbody>`;
+
+  // Cada indicador pode ter semanas diferentes — renderiza por indicador
   inds.forEach(ind=>{
+    const weeks=getWeeksForInd(ind);
     const entries=ind.entries||[];
-    html+=`<tr><td class="name-cell">
+    html+=`<div class="ind-grid-wrap" style="margin-bottom:16px"><table class="ind-grid"><thead><tr>
+      <th class="name-col">Indicador</th>
+      ${weeks.map(w=>`<th style="${isCurrentWeek(w)?'color:var(--or)':''}">${weekLabel(w)}${isCurrentWeek(w)?'<br><span style="font-size:8px;color:var(--or)">em curso</span>':''}</th>`).join('')}
+    </tr></thead><tbody><tr>
+    <td class="name-cell">
       <div style="display:flex;align-items:center;gap:7px">
         ${uavHtml(ind.responsible||ind.user_email,20)}
         <div>
           <div class="ind-name">${esc(ind.name)}</div>
-          <div class="ind-meta">${ind.condition==='gte'?'≥':'≤'} ${fv(ind.goal,ind.type)} · ${ind.type==='num'?'Número':ind.type}</div>
+          <div class="ind-meta">${ind.condition==='gte'?'≥':'≤'} ${fv(ind.goal,ind.type)} · ${ind.type==='num'?'Número':ind.type}${ind.start_week?` · desde ${fd(ind.start_week)}`:''}</div>
         </div>
       </div>
-      ${canEdit?`<div style="margin-top:5px;display:flex;gap:4px"><button class="btn btn-rd btn-sm" onclick="delInd('${email}','${ind.id}')">×</button></div>`:''}
+      ${canEdit?`<div style="margin-top:5px;display:flex;gap:4px">
+        <button class="btn btn-gh btn-sm" onclick="openModal('editInd','${ind.id}|${email}')">✏️</button>
+        <button class="btn btn-rd btn-sm" onclick="delInd('${email}','${ind.id}')">×</button>
+      </div>`:''}
     </td>`;
     weeks.forEach(w=>{
       const wk=weekKey(w);
       const entry=entries.find(e=>e.week===wk);
+      const isCurrent=isCurrentWeek(w);
       const isEditing=editingCell&&editingCell.indId===ind.id&&editingCell.weekDate===wk;
       if(isEditing){
         html+=`<td><div class="cell-edit">
@@ -1092,14 +1098,17 @@ function rIndGrid(email,canEdit){
       } else if(entry){
         const val=parseFloat(entry.value);const goal=parseFloat(ind.goal);
         const ok=ind.condition==='gte'?val>=goal:val<=goal;
-        html+=`<td><div class="cell-val ${ok?'hit':'miss'}" onclick="${canEdit?`startEdit('${ind.id}','${wk}')`:''}">${entry.obs?`<div class="cell-tip">💬 ${esc(entry.obs)}</div>`:''}<span class="cell-number ${ok?'hit':'miss'}">${fv(entry.value,ind.type)}</span><span class="cell-badge" style="color:${ok?'var(--grn)':'var(--red)'}">${ok?'✓':'✗'}</span></div></td>`;
+        // Semana atual: verde se atingiu, neutro se não atingiu
+        const cls=ok?'hit':(isCurrent?'':'miss');
+        const numCls=ok?'hit':(isCurrent?'':'miss');
+        const badge=ok?`<span class="cell-badge" style="color:var(--grn)">✓</span>`:(isCurrent?'':` <span class="cell-badge" style="color:var(--red)">✗</span>`);
+        html+=`<td><div class="cell-val ${cls}" onclick="${canEdit?`startEdit('${ind.id}','${wk}')`:''}">${entry.obs?`<div class="cell-tip">💬 ${esc(entry.obs)}</div>`:''}<span class="cell-number ${numCls}">${fv(entry.value,ind.type)}</span>${badge}</div></td>`;
       } else {
         html+=`<td><div class="cell-val" onclick="${canEdit?`startEdit('${ind.id}','${wk}')`:''}" style="cursor:${canEdit?'pointer':'default'}"><span class="cell-number empty">${canEdit?'+':'—'}</span></div></td>`;
       }
     });
-    html+=`</tr>`;
+    html+=`</tr></tbody></table></div>`;
   });
-  html+=`</tbody></table></div>`;
   return html;
 }
 
@@ -1381,6 +1390,7 @@ function rModal(){
         <div class="fg"><label class="fl">Condição</label><select class="fs" id="m_ic"><option value="gte" ${!ex||ex.condition==='gte'?'selected':''}>≥ Igual/Acima</option><option value="lte" ${ex?.condition==='lte'?'selected':''}>≤ Igual/Abaixo</option></select></div>
       </div>
       <div class="fg"><label class="fl">Meta</label><input class="fi" id="m_ig" type="number" value="${ex?.goal||''}" placeholder="0"></div>
+      <div class="fg"><label class="fl">Semana de início <span style="font-weight:400;color:var(--tx3)">(opcional — deixe em branco para mostrar as últimas 10 semanas)</span></label><input class="fi" type="date" id="m_istart" value="${ex?.start_week||''}" placeholder=""></div>
       <div class="fg"><label class="fl">Responsável</label><select class="fs" id="m_iresp">
         <option value="${email}">${CACHE.users.find(u=>u.email===email)?.name||email} (padrão)</option>
         ${collabs.filter(u=>u.email!==email).map(u=>`<option value="${esc(u.email)}" ${ex?.responsible===u.email?'selected':''}>${esc(u.name||u.email)}</option>`).join('')}
@@ -1611,11 +1621,16 @@ window.saveInd=async(email,editId)=>{
   const name=gv('m_in'),goal=gv('m_ig');
   if(!name||goal===''){alert('Preencha nome e meta.');return;}
   const resp=gv('m_iresp')||email;
-  const entry={id:editId||uid(),user_email:email,name,goal,type:gv('m_it'),condition:gv('m_ic'),responsible:resp,entries:[]};
+  // Normaliza start_week para segunda-feira da semana selecionada
+  let start_week=gv('m_istart')||null;
+  if(start_week){const d=new Date(start_week+'T00:00:00');const day=d.getDay();const diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);start_week=d.toISOString().split('T')[0];}
   if(editId){
-    await sb('indicators','PATCH',{name,goal,type:entry.type,condition:entry.condition,responsible:resp},`?id=eq.${editId}`);
-    const idx=CACHE.indicators.findIndex(x=>x.id===editId);if(idx>=0)CACHE.indicators[idx]={...CACHE.indicators[idx],...entry};
+    const patch={name,goal,type:gv('m_it'),condition:gv('m_ic'),responsible:resp,start_week};
+    await sb('indicators','PATCH',patch,`?id=eq.${editId}`);
+    const idx=CACHE.indicators.findIndex(x=>x.id===editId);
+    if(idx>=0)CACHE.indicators[idx]={...CACHE.indicators[idx],...patch};
   }else{
+    const entry={id:uid(),user_email:email,name,goal,type:gv('m_it'),condition:gv('m_ic'),responsible:resp,start_week,entries:[]};
     await sb('indicators','POST',entry);CACHE.indicators.push(entry);
   }
   S.modal=null;render();
@@ -2326,17 +2341,22 @@ window.toggleIndView=()=>{S.indView=S.indView==='chart'?'grid':'chart';render();
 
 function rIndChart(email){
   const inds=gI(email);
-  const weeks=getLast10Weeks();
   if(!inds.length)return`<div class="empty"><div class="ei">📊</div><div class="et">Nenhum indicador cadastrado</div></div>`;
 
   let html='';
 
-  // Percentual de metas atingidas no período
+  // Percentual de metas atingidas — exclui semana atual de "não atingidas"
   let totalCells=0,hitCells=0;
   inds.forEach(ind=>{
+    const weeks=getWeeksForInd(ind);
     weeks.forEach(w=>{
       const entry=(ind.entries||[]).find(e=>e.week===weekKey(w));
-      if(entry){totalCells++;if(iOk({...ind,value:entry.value}))hitCells++;}
+      if(entry){
+        const ok=iOk({...ind,value:entry.value});
+        // Semana atual: conta se bateu, não conta como miss se não bateu
+        if(ok){totalCells++;hitCells++;}
+        else if(!isCurrentWeek(w)){totalCells++;}
+      }
     });
   });
   const pct=totalCells>0?Math.round((hitCells/totalCells)*100):0;
@@ -2350,9 +2370,16 @@ function rIndChart(email){
     </div>
     ${inds.map(ind=>{
       const entries=ind.entries||[];
-      const indCells=weeks.filter(w=>entries.find(e=>e.week===weekKey(w)));
+      const indWeeks=getWeeksForInd(ind);
+      // Semana atual: só conta se bateu, nunca como miss
+      let indTotal=0,indHitCount=0;
+      indWeeks.forEach(w=>{
+        const e=entries.find(x=>x.week===weekKey(w));
+        if(e){const ok=iOk({...ind,value:e.value});if(ok){indTotal++;indHitCount++;}else if(!isCurrentWeek(w)){indTotal++;}}
+      });
+      const indCells=indWeeks.filter(w=>entries.find(e=>e.week===weekKey(w)));
       const indHit=indCells.filter(w=>{const e=entries.find(x=>x.week===weekKey(w));return e&&iOk({...ind,value:e.value});});
-      const p=indCells.length>0?Math.round((indHit.length/indCells.length)*100):null;
+      const p=indTotal>0?Math.round((indHitCount/indTotal)*100):null;
       const c=p===null?'var(--tx4)':p>=80?'var(--grn)':p>=50?'var(--or)':'var(--red)';
       return`<div class="ind-pct-card">
         <div class="ind-pct-name">${esc(ind.name)}</div>
