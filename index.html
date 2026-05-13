@@ -11,7 +11,7 @@
   --bg:#0a0b0e;--bg1:#0f1014;--bg2:#141519;--bg3:#191b20;--bg4:#1e2027;--bg5:#232630;
   --ln:#ffffff08;--ln2:#ffffff0e;--ln3:#ffffff16;--ln4:#ffffff22;
   --or:#ff8c42;--or2:#ff9f5a;--orbg:#ff8c4212;--orbg2:#ff8c4222;
-  --tx:#e8eaf0;--tx2:#9096a6;--tx3:#535869;--tx4:#2e3240;
+  --tx:#f0f2f8;--tx2:#b8bfcc;--tx3:#7a8194;--tx4:#3e4460;
   --red:#ef4444;--redbg:#ef444412;
   --grn:#22c55e;--grnbg:#22c55e12;
   --blu:#3b82f6;--blubg:#3b82f612;
@@ -165,14 +165,14 @@ body{font-family:var(--fj);background:var(--bg);color:var(--tx);font-size:13px;l
 .ind-name{font-weight:700;color:var(--tx);font-size:12px;margin-bottom:2px}
 .ind-meta{font-size:9px;color:var(--tx3);font-weight:500}
 .cell-wrap{position:relative;width:100%;height:100%;min-height:52px;display:flex;align-items:center;justify-content:center}
-.cell-val{padding:6px 8px;text-align:center;cursor:pointer;width:100%;height:100%;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:background .1s;position:relative}
+.cell-val{padding:8px 8px;text-align:center;cursor:pointer;width:100%;height:100%;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:background .1s;position:relative}
 .cell-val:hover{background:var(--bg3)}
 .cell-val.hit{background:#22c55e08}.cell-val.miss{background:#ef444408}
-.cell-number{font-family:var(--fs);font-size:16px;font-weight:800;line-height:1}
+.cell-number{font-family:var(--fs);font-size:18px;font-weight:800;line-height:1.1;letter-spacing:-0.5px}
 .cell-number.hit{color:var(--grn)}.cell-number.miss{color:var(--red)}.cell-number.empty{color:var(--tx4);font-size:12px;font-weight:400}
 .cell-badge{font-size:9px;font-weight:700;line-height:1}
 /* tooltip */
-.cell-tip{position:absolute;bottom:calc(100%+4px);left:50%;transform:translateX(-50%);background:var(--bg5);border:1px solid var(--ln3);border-radius:var(--r);padding:7px 10px;font-size:11px;color:var(--tx2);z-index:200;width:180px;opacity:0;pointer-events:none;transition:opacity .15s;line-height:1.5;text-align:left;white-space:normal}
+.cell-tip{position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);background:var(--bg5);border:1px solid var(--ln3);border-radius:var(--r2);padding:10px 12px;font-size:11px;color:var(--tx2);z-index:9999;min-width:220px;max-width:320px;width:max-content;opacity:0;pointer-events:none;transition:opacity .15s;line-height:1.6;text-align:left;white-space:pre-wrap;word-break:break-word;box-shadow:0 8px 24px #00000060}
 .cell-val:hover .cell-tip{opacity:1}
 /* inline edit */
 .cell-edit{display:flex;flex-direction:column;gap:3px;padding:4px;width:100%}
@@ -755,16 +755,18 @@ function getLast10Weeks(){
 function getWeeksForInd(ind){
   const mon=getMondayDate();
   if(!ind.start_week){
+    // Sempre 10 semanas para trás + semana atual no final
     const weeks=[];
     for(let i=9;i>=0;i--){const w=new Date(mon);w.setDate(mon.getDate()-i*7);weeks.push(w);}
     return weeks;
   }
-  // Parse start_week (YYYY-MM-DD of a monday)
+  // Com start_week: da data de início até hoje, máx 10, semana atual sempre no final
   const start=new Date(ind.start_week+'T00:00:00');
-  const weeks=[];
+  const all=[];
   let cur=new Date(start);
-  while(cur<=mon&&weeks.length<10){weeks.push(new Date(cur));cur.setDate(cur.getDate()+7);}
-  return weeks;
+  while(cur<=mon){all.push(new Date(cur));cur.setDate(cur.getDate()+7);}
+  // Pegar as últimas 10 (inclui a semana atual que sempre é a última)
+  return all.slice(-10);
 }
 // Is a given week the current (not yet finished) week?
 function isCurrentWeek(weekDate){
@@ -1279,7 +1281,7 @@ function rPropPage(email,canEdit){
   <div class="ph"><div></div>${canEdit?`<button class="btn btn-or" onclick="openModal('newProp','${email}')">+ Proposta</button>`:''}</div>`;
   if(!props.length)return html+`<div class="empty"><div class="ei">📋</div><div class="et">Nenhuma proposta no período</div></div>`;
   html+=`<div class="card"><table class="tbl"><thead><tr><th>Cliente</th><th>Produto</th><th>Valor</th><th>Data</th><th>Status</th>${canEdit?'<th></th>':''}</tr></thead><tbody>`;
-  [...props].reverse().forEach(p=>{const sm={enviada:'bx-bl',aprovada:'bx-gn',negada:'bx-rd'},sl={enviada:'Enviada',aprovada:'Aprovada',negada:'Negada'};html+=`<tr><td class="nm">${esc(p.client)}</td><td class="mo">${esc(p.product)}</td><td style="font-weight:700;color:var(--or)">${parseFloat(p.value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td class="mo">${fd(p.date)}</td><td><span class="bx ${sm[p.status]}">${sl[p.status]}</span></td>${canEdit?`<td><div style="display:flex;gap:3px"><button class="btn btn-gh btn-sm" onclick="openModal('editProp','${p.id}|${email}')">Editar</button><button class="btn btn-rd btn-sm" onclick="delProp('${email}','${p.id}')">×</button></div></td>`:''}</tr>`;});
+  [...props].reverse().forEach(p=>{const sm={enviada:'bx-bl',aprovada:'bx-gn',negada:'bx-rd'},sl={enviada:'Enviada',aprovada:'Aprovada',negada:'Negada'};html+=`<tr><td class="nm">${esc(p.client)}</td><td class="mo">${esc(p.product)}</td><td style="font-weight:700;color:var(--or)">${parseFloat(p.value||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td><td class="mo">${fd(p.date)}</td><td><span class="bx ${sm[p.status]}">${sl[p.status]}</span></td>${canEdit?`<td><div style="display:flex;gap:3px"><button class="btn btn-gh btn-sm" onclick="openModal('editProp','${p.id}|${email}')">Editar</button>${isAdmin()?`<button class="btn btn-rd btn-sm" onclick="delProp('${email}','${p.id}')">×</button>`:''}</div></td>`:''}</tr>`;});
   html+=`</tbody></table></div>`;return html;
 }
 
@@ -1470,9 +1472,13 @@ function rModal(){
       <div class="fg"><label class="fl">Produto / Serviço</label><input class="fi" id="m_pp" value="${esc(ex?.product||'')}" placeholder="Ex: Plano Enterprise"></div>
       <div class="fr fr2">
         <div class="fg"><label class="fl">Valor (R$)</label><input class="fi" id="m_pv" type="number" value="${ex?.value||''}" placeholder="0,00"></div>
-        <div class="fg"><label class="fl">Data</label><input type="date" class="fi" id="m_pd" value="${ex?.date||today()}"></div>
+        <div class="fg"><label class="fl">Data envio</label><input type="date" class="fi" id="m_pd" value="${ex?.date||today()}"></div>
       </div>
-      <div class="fg"><label class="fl">Status</label><select class="fs" id="m_ps"><option value="enviada" ${ex?.status==='enviada'?'selected':''}>Enviada</option><option value="aprovada" ${ex?.status==='aprovada'?'selected':''}>Aprovada</option><option value="negada" ${ex?.status==='negada'?'selected':''}>Negada</option></select></div>
+      <div class="fg"><label class="fl">Status</label><select class="fs" id="m_ps" onchange="togglePropDecisionDate(this.value)"><option value="enviada" ${!ex||ex?.status==='enviada'?'selected':''}>Enviada</option><option value="aprovada" ${ex?.status==='aprovada'?'selected':''}>Aprovada</option><option value="negada" ${ex?.status==='negada'?'selected':''}>Negada</option></select></div>
+      <div class="fg" id="propDecisionBlock" style="display:${ex?.status==='aprovada'||ex?.status==='negada'?'block':'none'}">
+        <label class="fl" id="propDecisionLabel">${ex?.status==='aprovada'?'Data de aprovação':'Data de recusa'}</label>
+        <input type="date" class="fi" id="m_pdecision" value="${ex?.decision_date||''}">
+      </div>
     </div>
     <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveProp('${email}','${id||''}')">Salvar</button></div>`;
   }
@@ -1522,10 +1528,15 @@ function rModal(){
   if(type==='newNews'){
     const me=S.user;
     const myCompany=me.company||'';
+    const cliOpts=CACHE.clients.filter(c=>c.status==='ativo'||c.status==='implantacao').sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
     c=`<div class="mh"><div class="mt">Nova Notícia</div><button class="mx" onclick="closeModal()">✕</button></div>
     <div class="mb">
       <div class="fg"><label class="fl">Título</label><input class="fi" id="m_nt" placeholder="Título da notícia..."></div>
       <div class="fg"><label class="fl">Mensagem</label><textarea class="ft" id="m_nbody" placeholder="Conteúdo..."></textarea></div>
+      <div class="fg"><label class="fl">Cliente relacionado <span style="font-weight:400;color:var(--tx3)">(opcional)</span></label><select class="fs" id="m_nclient">
+        <option value="">Nenhum</option>
+        ${cliOpts.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
+      </select></div>
       <div class="fg"><label class="fl">Enviar para</label><select class="fs" id="m_ntarget">
         <option value="all">Todos</option>
         ${isAdmin()?`${[...new Set(gU().filter(u=>u.company).map(u=>u.company))].map(co=>`<option value="company:${esc(co)}">${esc(co)}</option>`).join('')}${collabs.map(u=>`<option value="${esc(u.email)}">${esc(u.name||u.email)}</option>`).join('')}`:`<option value="company:${esc(myCompany)}">${esc(myCompany)} (minha empresa)</option>`}
@@ -1664,11 +1675,19 @@ window.saveMtg=async(email)=>{
 
 window.saveProp=async(email,editId)=>{
   const client=gv('m_pc'),product=gv('m_pp');if(!client||!product){alert('Preencha cliente e produto.');return;}
-  const entry={id:editId||uid(),user_email:email,client,product,value:gv('m_pv'),date:gv('m_pd'),status:gv('m_ps')};
-  if(editId){await sb('proposals','PATCH',{client,product,value:entry.value,date:entry.date,status:entry.status},`?id=eq.${editId}`);const idx=CACHE.proposals.findIndex(x=>x.id===editId);if(idx>=0)CACHE.proposals[idx]=entry;}
+  const decision_date=gv('m_pdecision')||null;
+  const entry={id:editId||uid(),user_email:email,client,product,value:gv('m_pv'),date:gv('m_pd')||today(),status:gv('m_ps'),decision_date};
+  if(editId){await sb('proposals','PATCH',{client,product,value:entry.value,date:entry.date,status:entry.status,decision_date},`?id=eq.${editId}`);const idx=CACHE.proposals.findIndex(x=>x.id===editId);if(idx>=0)CACHE.proposals[idx]=entry;}
   else{await sb('proposals','POST',entry);CACHE.proposals.push(entry);}
   if(entry.status==='aprovada')checkAutoChicken('proposta',`Proposta aprovada: ${entry.client}! 💰`);
   S.modal=null;render();
+};
+window.togglePropDecisionDate=function(status){
+  const block=document.getElementById('propDecisionBlock');
+  const lbl=document.getElementById('propDecisionLabel');
+  if(!block)return;
+  block.style.display=(status==='aprovada'||status==='negada')?'block':'none';
+  if(lbl)lbl.textContent=status==='aprovada'?'Data de aprovação':'Data de recusa';
 };
 
 window.saveTask=async(email,editId)=>{
@@ -1711,12 +1730,13 @@ window.saveUser=async(editEmail)=>{
 
 window.saveNews=async()=>{
   const title=gv('m_nt');if(!title){alert('Digite o título.');return;}
+  const client_id=gv('m_nclient')||null;
   const target=gv('m_ntarget'),me=S.user;
   let recipients=[],targetLabel='';
   if(target==='all'){recipients=['all'];targetLabel='Todos';}
   else if(target.startsWith('company:')){const co=target.replace('company:','');recipients=CACHE.users.filter(u=>u.company===co).map(u=>u.email);targetLabel=co;}
   else{recipients=[target];targetLabel=CACHE.users.find(u=>u.email===target)?.name||target;}
-  const entry={id:uid(),from_email:me.email,from_name:me.name||me.email,title,body:gv('m_nbody'),type:'news',recipients,target_label:targetLabel,read_by:[],created_at:new Date().toISOString()};
+  const entry={id:uid(),from_email:me.email,from_name:me.name||me.email,title,body:gv('m_nbody'),type:'news',recipients,target_label:targetLabel,read_by:[],created_at:new Date().toISOString(),client_id};
   await sb('news','POST',entry);CACHE.news.unshift(entry);S.modal=null;render();
 };
 
@@ -1824,8 +1844,8 @@ function goalCardHtml(g,canEdit){
   // Responsible: only admin sees
   const respBlock=isAdmin()?`<div class="goal-resp">${uavHtml(g.responsible,18)}<span>${esc(respName)}</span></div>`:'';
   // Admin actions
-  const adminActs=isAdmin()&&canEdit?`<div class="goal-admin-acts"><button class="btn btn-gh btn-sm" onclick="openModal('editGoal','${g.id}|${g.responsible}')">Editar</button><button class="btn btn-rd btn-sm" onclick="delGoal('${g.id}')">×</button></div>`:'';
-  return`<div class="goal-card" style="--goal-clr:${cfg.clr}">
+  const isOwner=S.user?.email===g.responsible||S.user?.email===g.user_email;
+  const adminActs=canEdit&&(isAdmin()||isOwner)?`<div class="goal-admin-acts">${(isAdmin()||isOwner)?`<button class="btn btn-gh btn-sm" onclick="openModal('editGoal','${g.id}|${g.responsible}')">Editar</button>`:''} ${isAdmin()?`<button class="btn btn-rd btn-sm" onclick="delGoal('${g.id}')">×</button>`:''}</div>`:'';  return`<div class="goal-card" style="--goal-clr:${cfg.clr}">
     <div class="goal-card-header">
       <p class="goal-text">${esc(g.text)}</p>
       <div class="goal-status-wrap">
@@ -1851,7 +1871,7 @@ function rGoalsPage(email,canEdit){
     <button class="goal-sub-tab ${gt==='ativas'?'on':''}" onclick="S.goalsTab='ativas';render()">Ativas</button>
     <button class="goal-sub-tab ${gt==='arquivadas'?'on':''}" onclick="S.goalsTab='arquivadas';render()">Arquivadas</button>
   </div>`;
-  html+=`<div class="ph"><div></div>${isAdmin()&&canEdit?`<button class="btn btn-or" onclick="openModal('newGoal','${email}')">+ Nova Meta</button>`:''}</div>`;
+  html+=`<div class="ph"><div></div>${canEdit?`<button class="btn btn-or" onclick="openModal('newGoal','${email}')">+ Nova Meta</button>`:''}</div>`;
   if(gt==='ativas'){
     const trim=lista.filter(g=>g.type==='Trimestral');
     const mens=lista.filter(g=>g.type==='Mensal');
@@ -2020,7 +2040,7 @@ function rImplant(){
         <span class="impl-col-name">${esc(phase)}</span>
         <span class="impl-col-count${hasCds?' has':''}">${phaseCards.length}</span>
       </div>
-      <div class="impl-col-body" id="implCol_${pi}">${cardsHtml}</div>
+      <div class="impl-col-body" id="implCol_${pi}" ondragover="implDragOver(event,${pi})" ondragleave="implDragLeave(event)" ondrop="implDrop(event,${pi})">${cardsHtml}</div>
     </div>`;
   });
 
@@ -2081,7 +2101,7 @@ function implCardHtml(card,canEdit=true){
     dateHtml=`<div class="impl-card-date ${cls}">${card.new_forecast?fd(card.new_forecast):'—'}</div>`;
   }
   // Readonly: card clicável mas abre modal sem ações de edição
-  return`<div class="impl-card ${cls}" onclick="openModal('viewImplCard','${card.id}')">
+  return`<div class="impl-card ${cls}" id="icard_${card.id}" draggable="${canEdit?'true':'false'}" ondragstart="implDragStart(event,'${card.id}')" onclick="openModal('viewImplCard','${card.id}')">
     <div class="impl-card-client">${esc(card.client_name)}</div>
     ${dateHtml}
     <div class="impl-card-days">${days}d em implantação</div>
@@ -2779,16 +2799,25 @@ function rClientes(){
     {key:'pausado',label:`Pausados (${pausados})`},
   ];
 
+  // Churn por ano (usando cancel_date ou end_date)
+  const churnYears={};
+  allCli.filter(c=>c.status==='churn').forEach(c=>{
+    const d=c.cancel_date||c.end_date;
+    if(d){const y=new Date(d).getFullYear();churnYears[y]=(churnYears[y]||0)+1;}
+  });
+  const churnByYearHtml=Object.keys(churnYears).sort().map(y=>`<div class="sc rd"><div class="sc-l">Churn ${y}</div><div class="sc-v">${churnYears[y]}</div><div class="sc-s">${Math.round(churnYears[y]/churn*100)}% do total</div></div>`).join('');
+
   let html=`<div class="cli-stat-bar">
     <div class="sc or"><div class="sc-l">Total clientes</div><div class="sc-v">${total}</div></div>
     <div class="sc gn"><div class="sc-l">Ativos</div><div class="sc-v">${ativos}</div><div class="sc-s">${allCli.filter(c=>c.status==='ativo').length} impl. + ${emImpl} em andamento</div></div>
     <div class="sc rd"><div class="sc-l">Taxa de churn</div><div class="sc-v">${taxaChurn}%</div><div class="sc-s">${churn} clientes perdidos</div></div>
     ${tmedio?`<div class="sc bl"><div class="sc-l">Tempo médio impl.</div><div class="sc-v">${tmedio}d</div></div>`:`<div class="sc gy"><div class="sc-l">Tempo médio impl.</div><div class="sc-v">—</div></div>`}
     ${emRisco?`<div class="sc rd"><div class="sc-l">Em risco (&gt;150d)</div><div class="sc-v">${emRisco}</div></div>`:''}
+    ${churnByYearHtml}
   </div>`;
 
   html+=`<div class="cli-search-row">
-    <input class="fi" style="max-width:220px;padding:6px 10px;font-size:12px" placeholder="Buscar cliente..." value="${esc(S.cliSearch||'')}" oninput="S.cliSearch=this.value;render()">
+    <input class="fi" id="cliSearchInput" style="max-width:220px;padding:6px 10px;font-size:12px" placeholder="Buscar cliente..." value="${esc(S.cliSearch||'')}" oninput="S.cliSearch=this.value;rCliGrid(this)">
     <div class="cli-filter-pills">${filters.map(f=>`<button class="cli-pill ${S.cliFilter===f.key?'on':''}" onclick="S.cliFilter='${f.key}';render()">${f.label}</button>`).join('')}</div>
     <div class="cli-view-toggle" style="margin-left:auto">
       <button class="cli-view-btn ${S.cliView==='cards'?'on':''}" onclick="S.cliView='cards';render()" title="Cards">▦</button>
@@ -2798,10 +2827,11 @@ function rClientes(){
   </div>`;
 
   if(!filtered.length){
-    html+=`<div class="empty"><div class="ei">🏢</div><div class="et">Nenhum cliente encontrado</div></div>`;
+    html+=`<div id="cliGridContainer"><div class="empty"><div class="ei">🏢</div><div class="et">Nenhum cliente encontrado</div></div></div>`;
     return html;
   }
 
+  html+=`<div id="cliGridContainer">`;
   if(S.cliView==='lista'){
     html+=`<div class="cli-list">`;
     html+=`<div style="display:grid;grid-template-columns:2fr 3fr 120px 110px 110px 80px;gap:8px;padding:4px 14px;font-size:9px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:1.2px">
@@ -2855,6 +2885,7 @@ function rClientes(){
     });
     html+=`</div>`;
   }
+  html+=`</div>`; // close cliGridContainer
   return html;
 }
 
@@ -2897,10 +2928,44 @@ function rClienteDetalhe(id){
 
     ${c.cancel_reason?`<div class="cli-cancel-box"><div class="cli-cancel-title">Motivo do cancelamento</div><div style="font-size:12px;color:var(--tx2);line-height:1.6">${esc(c.cancel_reason)}</div></div>`:''}
     ${c.observacoes?`<div class="card" style="margin-top:10px"><div class="card-h"><div class="card-t">Observações</div></div><div style="padding:12px 14px;font-size:12px;color:var(--tx2);line-height:1.7">${esc(c.observacoes)}</div></div>`:''}
+    ${(()=>{const cNews=CACHE.news.filter(n=>n.client_id===c.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return cNews.length?`<div class="card" style="margin-top:10px"><div class="card-h"><div class="card-t">📰 Notícias vinculadas</div></div><div style="padding:0 0 4px">${cNews.map(n=>`<div style="padding:10px 14px;border-bottom:1px solid var(--ln)"><div style="font-size:12px;font-weight:700;color:var(--tx)">${esc(n.title)}</div><div style="font-size:11px;color:var(--tx3);margin-top:2px">${fd(n.created_at)}</div>${n.body?`<div style="font-size:11px;color:var(--tx2);margin-top:4px;line-height:1.5">${esc(n.body.slice(0,120))}${n.body.length>120?'…':''}</div>`:''}</div>`).join('')}</div></div>`:''})()}
   </div>`;
 }
 
 window.viewCliente=id=>{S.page='clienteDetalhe';S.clienteId=id;render();};
+
+// Partial re-render for client grid only (preserves search input focus)
+window.rCliGrid=function(inputEl){
+  S.cliSearch=inputEl.value;
+  const allCli=getVisibleClients();
+  let filtered=allCli;
+  if(S.cliFilter&&S.cliFilter!=='todos')filtered=filtered.filter(c=>c.status===S.cliFilter);
+  if(S.cliSearch)filtered=filtered.filter(c=>(c.name||'').toLowerCase().includes(S.cliSearch.toLowerCase())||(c.razao_social||'').toLowerCase().includes(S.cliSearch.toLowerCase()));
+  filtered.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const gridEl=document.getElementById('cliGridContainer');
+  if(!gridEl){render();return;}
+  if(!filtered.length){gridEl.innerHTML=`<div class="empty"><div class="ei">🏢</div><div class="et">Nenhum cliente encontrado</div></div>`;return;}
+  if(S.cliView==='lista'){
+    let h=`<div class="cli-list"><div style="display:grid;grid-template-columns:2fr 3fr 120px 110px 110px 80px;gap:8px;padding:4px 14px;font-size:9px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:1.2px"><span>Nome</span><span>Razão Social</span><span>Status</span><span>Início</span><span>Fim Impl.</span><span></span></div>`;
+    filtered.forEach(c=>{
+      const hoje=new Date();let extra='';
+      if(c.status==='implantacao'&&c.start_date){const dias=Math.round((hoje-new Date(c.start_date))/86400000);extra=`<span style="font-size:10px;color:${dias>150?'var(--red)':'var(--tx3)'}">${dias}d</span>`;}
+      else if(c.cancel_date){extra=`<span style="font-size:10px;color:var(--red)">${fd(c.cancel_date)}</span>`;}
+      h+=`<div class="cli-list-row st-${c.status||'ativo'}" onclick="viewCliente('${c.id}')" style="display:grid;grid-template-columns:2fr 3fr 120px 110px 110px 80px;gap:8px;align-items:center"><span class="cli-list-name">${esc(c.name)}</span><span class="cli-list-razao">${esc(c.razao_social||'—')}</span><span>${statusCliLabel(c.status)}</span><span style="font-size:11px;color:var(--tx2)">${fd(c.start_date)}</span><span style="font-size:11px;color:var(--tx2)">${fd(c.end_date)}</span>${extra}</div>`;
+    });
+    gridEl.innerHTML=h+`</div>`;
+  } else {
+    let h=`<div class="cli-grid">`;
+    filtered.forEach(c=>{
+      const comp=CACHE.companies.find(x=>x.id===c.company_id);const hoje=new Date();
+      let diasStr='';if(c.status==='implantacao'&&c.start_date){const d=Math.round((hoje-new Date(c.start_date))/86400000);diasStr=`<div class="cli-row"><span class="cli-lbl">Em andamento</span><span class="cli-val" style="color:${d>150?'var(--red)':'var(--tx2)'}">${d} dias</span></div>`;}
+      let durStr='';if(c.start_date&&c.end_date){const d=Math.round((new Date(c.end_date)-new Date(c.start_date))/86400000);durStr=`<div class="cli-row"><span class="cli-lbl">Duração impl.</span><span class="cli-val">${d} dias</span></div>`;}
+      let canStr='';if(c.cancel_date)canStr=`<div class="cli-row"><span class="cli-lbl">Cancelamento</span><span class="cli-val" style="color:var(--red)">${fd(c.cancel_date)}</span></div>`;
+      h+=`<div class="cli-card st-${c.status||'ativo'}" onclick="viewCliente('${c.id}')"><div class="cli-name">${esc(c.name)}</div>${c.razao_social?`<div class="cli-razao">${esc(c.razao_social)}</div>`:'<div class="cli-razao" style="opacity:0">—</div>'}<div class="cli-row"><span>${statusCliLabel(c.status)}</span>${comp?`<span class="bx bx-gy" style="font-size:9px">${esc(comp.name)}</span>`:''}</div><div class="cli-row"><span class="cli-lbl">Início</span><span class="cli-val">${fd(c.start_date)}</span></div>${c.end_date?`<div class="cli-row"><span class="cli-lbl">Fim implantação</span><span class="cli-val">${fd(c.end_date)}</span></div>`:''}${canStr}${diasStr}${durStr}${c.observacoes?`<div class="cli-obs">${esc(c.observacoes.slice(0,80))}${c.observacoes.length>80?'…':''}</div>`:''}</div>`;
+    });
+    gridEl.innerHTML=h+`</div>`;
+  }
+};
 
 // ── MODAIS CLIENTES ────────────────────────────────────────────────────
 
@@ -2955,11 +3020,11 @@ function rModalEditCliente(id){
       <div class="fg"><label class="fl">Data início</label><input class="fi" type="date" id="cliStart" value="${c.start_date||''}"></div>
       <div class="fg"><label class="fl">Fim implantação</label><input class="fi" type="date" id="cliEnd" value="${c.end_date||''}"></div>
     </div>
-    ${c.status==='churn'||c.cancel_date?`<div class="fr fr2">
-      <div class="fg"><label class="fl">Data cancelamento</label><input class="fi" type="date" id="cliCancel" value="${c.cancel_date||''}"></div>
+    <div class="fr fr2">
+      <div class="fg"><label class="fl">Data cancelamento <span style="font-weight:400;color:var(--tx3)">(se aplicável)</span></label><input class="fi" type="date" id="cliCancel" value="${c.cancel_date||''}"></div>
       <div class="fg"></div>
     </div>
-    <div class="fg"><label class="fl">Motivo cancelamento</label><textarea class="ft" id="cliCancelReason" placeholder="Motivo do cancelamento...">${esc(c.cancel_reason||'')}</textarea></div>`:''}
+    <div class="fg"><label class="fl">Motivo cancelamento</label><textarea class="ft" id="cliCancelReason" placeholder="Motivo do cancelamento...">${esc(c.cancel_reason||'')}</textarea></div>
     <div class="fg"><label class="fl">Observações</label><textarea class="ft" id="cliObs" placeholder="Anotações livres...">${esc(c.observacoes||'')}</textarea></div>
   </div>
   <div class="mf"><button class="btn btn-gh" onclick="closeModal()">Cancelar</button><button class="btn btn-or" onclick="saveEditCliente('${id}')">Salvar</button></div>
@@ -3055,6 +3120,43 @@ window.deleteCliente=async function(id){
   if(r){CACHE.clients=CACHE.clients.filter(x=>x.id!==id);nav('clientes');}
 };
 
+
+
+// ── KANBAN DRAG AND DROP ──────────────────────────────────────────────
+let _dragCardId=null;
+window.implDragStart=function(e,cardId){
+  _dragCardId=cardId;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>{const el=document.getElementById('icard_'+cardId);if(el)el.classList.add('dragging');},0);
+};
+window.implDragOver=function(e,phaseIdx){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.impl-col-body').forEach(el=>el.classList.remove('drag-over'));
+  const col=document.getElementById('implCol_'+phaseIdx);
+  if(col)col.classList.add('drag-over');
+};
+window.implDragLeave=function(e){
+  if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.classList.remove('drag-over');
+};
+window.implDrop=async function(e,newPhase){
+  e.preventDefault();
+  document.querySelectorAll('.impl-col-body').forEach(el=>el.classList.remove('drag-over'));
+  if(!_dragCardId)return;
+  const cardId=_dragCardId;_dragCardId=null;
+  const el=document.getElementById('icard_'+cardId);if(el)el.classList.remove('dragging');
+  const card=CACHE.implCards.find(c=>c.id===cardId);
+  if(!card||card.phase===newPhase)return;
+  const board=CACHE.implBoards.find(b=>b.id===card.board_id);
+  const phases=board?.phases||[];
+  const oldPhaseName=phases[card.phase]||card.phase;
+  const newPhaseName=phases[newPhase]||newPhase;
+  await sb('implant_cards','PATCH',{phase:newPhase,updated_at:new Date().toISOString()},`?id=eq.${cardId}`);
+  const feed={id:uid(),card_id:cardId,user_email:S.user.email,type:'ok',content:`Fase movida manualmente: ${esc(oldPhaseName)} → ${esc(newPhaseName)}`,created_at:new Date().toISOString()};
+  await sb('implant_feed','POST',feed);
+  CACHE.implCards=CACHE.implCards.map(c=>c.id===cardId?{...c,phase:newPhase}:c);
+  CACHE.implFeed.push(feed);
+  render();
+};
 
 // ── INIT ───────────────────────────────────────────────────────────────
 (async()=>{
